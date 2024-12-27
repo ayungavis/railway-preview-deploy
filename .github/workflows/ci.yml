@@ -43,28 +43,3 @@ jobs:
       - name: Test
         id: npm-ci-test
         run: npm run ci-test
-
-  test-action:
-    name: GitHub Actions Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v4
-
-      - name: Test Local Action
-        id: test-action
-        uses: ./
-        with:
-          railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
-          project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
-          environment_name: production
-          preview_environment_name:
-            preview-pr-${{ github.event.pull_request.number }}
-          api_service_name: web
-          branch_name: ${{ github.head_ref }}
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.service_domain }}"

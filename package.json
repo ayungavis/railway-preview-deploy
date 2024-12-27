@@ -1,7 +1,7 @@
 {
   "name": "railway-preview-deploy",
   "description": "Railway preview deployment GitHub Actions workflow for every pull request opened in your repository like a Vercel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Wahyu Kurniawan <wahyu@tranity.id>",
   "homepage": "https://github.com/ayungavis/railway-preview-deploy",
   "repository": {

@@ -53261,13 +53261,48 @@ module.exports.implForWrapper = function (wrapper) {
 /***/ }),
 
 /***/ 6373:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.RAILWAY_ENDPOINT = void 0;
+exports.IS_CLEANUP = exports.REUSE_PREVIEW_ENVIRONMENT = exports.BRANCH_NAME = exports.IGNORE_SERVICE_REDEPLOY = exports.API_SERVICE_NAME = exports.ENVIRONMENT_VARIABLES = exports.PREVIEW_ENVIRONMENT_NAME = exports.PROJECT_ENVIRONMENT_ID = exports.PROJECT_ENVIRONMENT_NAME = exports.PROJECT_ID = exports.RAILWAY_ENDPOINT = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 exports.RAILWAY_ENDPOINT = 'https://backboard.railway.app/graphql/v2';
+// Action inputs
+exports.PROJECT_ID = core.getInput('project_id');
+exports.PROJECT_ENVIRONMENT_NAME = core.getInput('environment_name');
+exports.PROJECT_ENVIRONMENT_ID = core.getInput('environment_id');
+exports.PREVIEW_ENVIRONMENT_NAME = core.getInput('preview_environment_name');
+exports.ENVIRONMENT_VARIABLES = core.getInput('environment_variables');
+exports.API_SERVICE_NAME = core.getInput('api_service_name');
+exports.IGNORE_SERVICE_REDEPLOY = core.getInput('ignore_service_redeploy');
+exports.BRANCH_NAME = core.getInput('branch_name');
+exports.REUSE_PREVIEW_ENVIRONMENT = core.getInput('reuse_preview_environment') || 'true';
+exports.IS_CLEANUP = core.getInput('cleanup') || 'false';
 
 
 /***/ }),
@@ -53704,6 +53739,124 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
+const config_1 = __nccwpck_require__(6373);
+const cleanup_1 = __nccwpck_require__(6666);
+const deploy_1 = __nccwpck_require__(4776);
+/**
+ * The main function for the action.
+ * @returns {Promise<void>} Resolves when the action is complete.
+ */
+async function run() {
+    try {
+        if (config_1.IS_CLEANUP === 'true') {
+            await (0, cleanup_1.cleanup)();
+            return;
+        }
+        else {
+            await (0, deploy_1.deploy)();
+        }
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
+}
+
+
+/***/ }),
+
+/***/ 6666:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.cleanup = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const config_1 = __nccwpck_require__(6373);
+const delete_environment_1 = __nccwpck_require__(1585);
+const get_environments_1 = __nccwpck_require__(9918);
+/**
+ * Function to clean up preview environments.
+ * @param environmentName The name of the environment to delete.
+ */
+const cleanup = async () => {
+    try {
+        const { environments } = await (0, get_environments_1.getEnvironments)({ projectId: config_1.PROJECT_ID });
+        const selectedEnvironments = environments.edges.filter(edge => edge.node.name === config_1.PREVIEW_ENVIRONMENT_NAME);
+        if (selectedEnvironments.length >= 1) {
+            const environmentId = selectedEnvironments[0].node.id;
+            core.info(`Deleting environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${environmentId})`);
+            await (0, delete_environment_1.deleteEnvironment)({ id: environmentId });
+            core.info(`Environment ${config_1.PREVIEW_ENVIRONMENT_NAME} deleted successfully.`);
+        }
+        else {
+            core.info(`No environment found with the name: ${config_1.PREVIEW_ENVIRONMENT_NAME}`);
+        }
+    }
+    catch (error) {
+        core.setFailed(`Cleanup failed: ${error.message}`);
+    }
+};
+exports.cleanup = cleanup;
+
+
+/***/ }),
+
+/***/ 4776:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deploy = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const config_1 = __nccwpck_require__(6373);
 const redeploy_all_services_1 = __nccwpck_require__(995);
 const set_service_domain_output_1 = __nccwpck_require__(7412);
 const update_all_deployment_triggers_1 = __nccwpck_require__(4250);
@@ -53711,58 +53864,48 @@ const update_environment_variables_for_services_1 = __nccwpck_require__(1219);
 const create_environment_1 = __nccwpck_require__(7127);
 const delete_environment_1 = __nccwpck_require__(1585);
 const get_environments_1 = __nccwpck_require__(9918);
-// Railway Required Inputs
-const PROJECT_ID = core.getInput('project_id');
-const PROJECT_ENVIRONMENT_NAME = core.getInput('environment_name');
-const PROJECT_ENVIRONMENT_ID = core.getInput('environment_id');
-const PREVIEW_ENVIRONMENT_NAME = core.getInput('preview_environment_name');
-const ENVIRONMENT_VARIABLES = core.getInput('environment_variables');
-const API_SERVICE_NAME = core.getInput('api_service_name');
-const IGNORE_SERVICE_REDEPLOY = core.getInput('ignore_service_redeploy');
-const BRANCH_NAME = core.getInput('branch_name');
-const REUSE_PREVIEW_ENVIRONMENT = core.getInput('reuse_preview_environment') || 'true';
-/**
- * The main function for the action.
- * @returns {Promise<void>} Resolves when the action is complete.
- */
-async function run() {
+const deploy = async () => {
     try {
-        const ignoredServices = IGNORE_SERVICE_REDEPLOY
-            ? JSON.parse(IGNORE_SERVICE_REDEPLOY)
+        const ignoredServices = config_1.IGNORE_SERVICE_REDEPLOY
+            ? JSON.parse(config_1.IGNORE_SERVICE_REDEPLOY)
             : [];
-        const { environments } = await (0, get_environments_1.getEnvironments)({ projectId: PROJECT_ID });
-        const selectedEnvironments = environments.edges.filter(edge => edge.node.name === PREVIEW_ENVIRONMENT_NAME);
+        const { environments } = await (0, get_environments_1.getEnvironments)({ projectId: config_1.PROJECT_ID });
+        const selectedEnvironments = environments.edges.filter(edge => edge.node.name === config_1.PREVIEW_ENVIRONMENT_NAME);
         // if the environment exists, delete it
         if (selectedEnvironments.length >= 1) {
             const environmentId = selectedEnvironments[0].node.id;
-            core.info(`Environment found: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
-            if (REUSE_PREVIEW_ENVIRONMENT === 'true') {
-                core.info(`Reusing environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
+            core.info(`Environment found: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
+            if (config_1.REUSE_PREVIEW_ENVIRONMENT === 'true') {
+                core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
                 const { serviceInstances } = selectedEnvironments[0].node;
-                await (0, set_service_domain_output_1.setServiceDomainOutput)({
+                const servicesNeedRedeploy = await (0, set_service_domain_output_1.setServiceDomainOutput)({
                     serviceInstances,
                     ignoredServices,
-                    apiServiceName: API_SERVICE_NAME
+                    apiServiceName: config_1.API_SERVICE_NAME
+                });
+                await (0, redeploy_all_services_1.redeployAllServices)({
+                    environmentId,
+                    serviceIds: servicesNeedRedeploy
                 });
                 return;
             }
             else {
-                core.info(`Deleting environment: ${PROJECT_ENVIRONMENT_NAME} (id: ${environmentId})`);
+                core.info(`Deleting environment: ${config_1.PROJECT_ENVIRONMENT_NAME} (id: ${environmentId})`);
                 await (0, delete_environment_1.deleteEnvironment)({ id: environmentId });
             }
         }
         let projectEnvironmentId;
         // If there is no environment ID provided, get the environment ID from the project environments list by name
-        if (!PROJECT_ENVIRONMENT_ID) {
-            projectEnvironmentId = environments.edges.find(edge => edge.node.name === PROJECT_ENVIRONMENT_NAME)?.node.id;
+        if (!config_1.PROJECT_ENVIRONMENT_ID) {
+            projectEnvironmentId = environments.edges.find(edge => edge.node.name === config_1.PROJECT_ENVIRONMENT_NAME)?.node.id;
         }
         if (!projectEnvironmentId) {
-            throw new Error(`Environment not found: ${PROJECT_ENVIRONMENT_NAME}`);
+            throw new Error(`Environment not found: ${config_1.PROJECT_ENVIRONMENT_NAME}`);
         }
         const createdEnvironment = await (0, create_environment_1.createEnvironment)({
             input: {
-                name: PREVIEW_ENVIRONMENT_NAME,
-                projectId: PROJECT_ID,
+                name: config_1.PREVIEW_ENVIRONMENT_NAME,
+                projectId: config_1.PROJECT_ID,
                 sourceEnvironmentId: projectEnvironmentId
             }
         });
@@ -53777,20 +53920,20 @@ async function run() {
         // Update the environment variables for the services
         await (0, update_environment_variables_for_services_1.updateEnvironmentVariablesForServices)({
             environmentId,
-            projectId: PROJECT_ID,
+            projectId: config_1.PROJECT_ID,
             serviceInstances,
-            environmentVariables: ENVIRONMENT_VARIABLES
+            environmentVariables: config_1.ENVIRONMENT_VARIABLES
         });
         console.log('Waiting 15 seconds for deployments to initialize and become available...');
         await new Promise(resolve => setTimeout(resolve, 15000));
         await (0, update_all_deployment_triggers_1.updateAllDeploymentTriggers)({
             deploymentTriggerIds,
-            branchName: BRANCH_NAME
+            branchName: config_1.BRANCH_NAME
         });
         const servicesNeedRedeploy = await (0, set_service_domain_output_1.setServiceDomainOutput)({
             serviceInstances,
             ignoredServices,
-            apiServiceName: API_SERVICE_NAME
+            apiServiceName: config_1.API_SERVICE_NAME
         });
         await (0, redeploy_all_services_1.redeployAllServices)({
             environmentId,
@@ -53800,7 +53943,8 @@ async function run() {
     catch (error) {
         core.setFailed(error.message);
     }
-}
+};
+exports.deploy = deploy;
 
 
 /***/ }),

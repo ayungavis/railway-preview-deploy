@@ -56,6 +56,12 @@ inputs:
     description:
       "Whether to reuse the existing preview environment if it's already created"
     required: false
+    default: 'true'
+  cleanup:
+    description:
+      'Whether to cleanup the preview environment after the PR is closed'
+    required: false
+    default: 'false'
 
 # Define your outputs here.
 outputs:
