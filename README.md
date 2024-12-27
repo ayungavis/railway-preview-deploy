@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Railway Preview Deploy
-        uses: ayungavis/railway-preview-deploy@v1.0.0
+        uses: ayungavis/railway-preview-deploy@v1.0.1
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Railway
-        uses: ayungavis/railway-preview-deploy@v1.0.0
+        uses: ayungavis/railway-preview-deploy@v1.0.1
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
@@ -133,7 +133,7 @@ jobs:
 
       - name: Post or update deployment comment
         if: ${{ steps.test-action.outputs.service_domain != '' }}
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const marker = '<!-- preview-comment -->'; // Unique marker to identify the comment
@@ -197,7 +197,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cleanup Railway Environment
-        uses: ayungavis/railway-preview-deploy@v1.0.0
+        uses: ayungavis/railway-preview-deploy@v1.0.1
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}

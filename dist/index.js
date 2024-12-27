@@ -53878,10 +53878,14 @@ const deploy = async () => {
             if (config_1.REUSE_PREVIEW_ENVIRONMENT === 'true') {
                 core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
                 const { serviceInstances } = selectedEnvironments[0].node;
-                await (0, set_service_domain_output_1.setServiceDomainOutput)({
+                const servicesNeedRedeploy = await (0, set_service_domain_output_1.setServiceDomainOutput)({
                     serviceInstances,
                     ignoredServices,
                     apiServiceName: config_1.API_SERVICE_NAME
+                });
+                await (0, redeploy_all_services_1.redeployAllServices)({
+                    environmentId,
+                    serviceIds: servicesNeedRedeploy
                 });
                 return;
             }
