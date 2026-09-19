@@ -6,6 +6,7 @@ type Query {
     serviceId: String!
   ): AllDomains!
   environment(id: String!, projectId: String): Environment
+  serviceInstance(environmentId: String!, serviceId: String!): ServiceInstance
   environments(
     after: String
     before: String
@@ -17,6 +18,15 @@ type Query {
   service(id: String!): Service!
 }
 
+input ServiceInstanceUpdateInput {
+  source: ServiceSourceInput
+}
+
+input ServiceSourceInput {
+  image: String
+  repo: String
+}
+
 type Mutation {
   environmentDelete(id: String!): Boolean!
   environmentCreate(input: EnvironmentCreateInput!): Environment!
@@ -25,6 +35,11 @@ type Mutation {
     environmentId: String!
     serviceId: String!
   ): String!
+  serviceInstanceUpdate(
+    environmentId: String
+    input: ServiceInstanceUpdateInput!
+    serviceId: String!
+  ): Boolean!
   variableCollectionUpsert(input: VariableCollectionUpsertInput): Boolean!
   deploymentTriggerUpdate(
     id: String!
@@ -137,9 +152,16 @@ type EnvironmentServiceInstancesConnectionEdge {
 
 type ServiceInstance {
   id: ID!
+  environmentId: String!
   serviceId: String!
   domains: AllDomains!
+  source: ServiceSource
   startCommand: String!
+}
+
+type ServiceSource {
+  image: String
+  repo: String
 }
 
 type AllDomains {

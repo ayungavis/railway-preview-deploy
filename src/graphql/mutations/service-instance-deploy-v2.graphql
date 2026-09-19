@@ -1,5 +1,5 @@
 mutation ServiceInstanceDeployV2(
-  $commitSha: String!
+  $commitSha: String
   $environmentId: String!
   $serviceId: String!
 ) {
