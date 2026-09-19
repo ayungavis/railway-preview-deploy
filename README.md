@@ -116,6 +116,19 @@ deployment. `update_deployment_triggers` is disabled by default; enable it only
 when the workflow needs Railway branch triggers updated. This addresses #25.
 Railway volumes and custom domains are not managed automatically.
 
+### GHCR image integration
+
+The action does not build or push Docker images. Build and publish the image in
+your workflow, then pass the full reference with `deployment_mode: image` and
+`image_ref`. Use a traceable tag containing the PR or test identifier and commit
+SHA, for example `ghcr.io/org/app:pr-40-a1b2c3d`.
+
+The manual GHCR integration workflow in this repository uses `GITHUB_TOKEN` with
+`packages: write` only for the image-publishing job. That token is not available
+to Railway. Private GHCR images require Railway-side registry pull credentials;
+use a public test image otherwise. Do not run image-publishing workflows from
+fork-controlled or untrusted code.
+
 ## Example Workflow
 
 The following example workflow deploys a preview environment on Railway for each
