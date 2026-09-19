@@ -24,8 +24,8 @@ changes in a live environment before merging.
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
 | `railway_api_token`         | The Railway API token.                                                                                                          | Yes      |         |
 | `project_id`                | The Railway project ID. You can find it in the Railway dashboard under **Settings > General**.                                  | Yes      |         |
-| `environment_name`          | The name of the environment that serves as the base for the preview deployment.                                                 | Yes      |         |
-| `environment_id`            | The environment ID that serves as the base for the preview deployment. If provided, `environment_name` will be ignored.         | No       |         |
+| `environment_name`          | The name of the source environment. Provide this or `environment_id`; `environment_id` takes precedence.                        | No       |         |
+| `environment_id`            | The ID of the source environment. If provided, `environment_name` is ignored.                                                   | No       |         |
 | `preview_environment_name`  | The name for the new preview environment. Use PR-specific naming, e.g., `pr-<PR_NUMBER>-<SHORT_COMMIT_HASH>`.                   | Yes      |         |
 | `environment_variables`     | Environment variables to be set for the preview deployment, provided as a JSON object (e.g., `{"KEY": "value"}`).               | No       |         |
 | `api_service_name`          | The name of the API service for the PR environment, used to identify the deployed domain.                                       | No       |         |
@@ -75,8 +75,10 @@ jobs:
 
 - `railway_api_token`: The token to authenticate your Railway API requests.
 - `project_id`: The ID of your Railway project.
-- `environment_name`: The base environment that the preview deployment will be
-  derived from (e.g., staging).
+- `environment_name`: The source environment name that the preview deployment
+  will be derived from (e.g., staging). Provide this or `environment_id`.
+- `environment_id`: The source environment ID. When provided, it takes
+  precedence over `environment_name`.
 - `preview_environment_name`: A custom name for the preview environment, which
   you can dynamically set using the PR number and commit hash.
 - `environment_variables`: Optional environment variables you can set, provided

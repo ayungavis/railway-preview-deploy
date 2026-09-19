@@ -68,6 +68,7 @@ export type Environment = {
   deployments: EnvironmentDeploymentsConnection;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
+  projectId: Scalars['String']['output'];
   serviceInstances: EnvironmentServiceInstancesConnection;
 };
 
@@ -162,12 +163,24 @@ export type PageInfo = {
 
 export type Query = {
   __typename?: 'Query';
+  environment?: Maybe<Environment>;
   environments: QueryEnvironmentConnection;
   service: Service;
 };
 
 
+export type QueryEnvironmentArgs = {
+  id: Scalars['String']['input'];
+  projectId?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryEnvironmentsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isEphemeral?: InputMaybe<Scalars['Boolean']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
   projectId: Scalars['String']['input'];
 };
 
@@ -259,12 +272,22 @@ export type VariableCollectionUpsertMutationVariables = Exact<{
 
 export type VariableCollectionUpsertMutation = { __typename?: 'Mutation', variableCollectionUpsert: boolean };
 
+export type GetEnvironmentQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+  projectId?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type GetEnvironmentQuery = { __typename?: 'Query', environment?: { __typename?: 'Environment', id: string, name: string, projectId: string, deploymentTriggers: { __typename?: 'EnvironmentDeploymentTriggersConnection', edges: Array<{ __typename?: 'EnvironmentDeploymentTriggersConnectionEdge', node: { __typename?: 'DeploymentTrigger', id: string, environmentId: string, branch: string, projectId: string } }> }, serviceInstances: { __typename?: 'EnvironmentServiceInstancesConnection', edges: Array<{ __typename?: 'EnvironmentServiceInstancesConnectionEdge', node: { __typename?: 'ServiceInstance', id: string, serviceId: string, domains: { __typename?: 'AllDomains', serviceDomains: Array<{ __typename?: 'ServiceDomain', domain: string, id: string }> } } }> } } | null };
+
 export type GetEnvironmentsQueryVariables = Exact<{
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
   projectId: Scalars['String']['input'];
 }>;
 
 
-export type GetEnvironmentsQuery = { __typename?: 'Query', environments: { __typename?: 'QueryEnvironmentConnection', edges: Array<{ __typename?: 'QueryEnvironmentConnectionEdge', node: { __typename?: 'Environment', id: string, name: string, deployments: { __typename?: 'EnvironmentDeploymentsConnection', edges: Array<{ __typename?: 'EnvironmentDeploymentsEdge', node: { __typename?: 'Deployment', id: string, status: string } }> }, serviceInstances: { __typename?: 'EnvironmentServiceInstancesConnection', edges: Array<{ __typename?: 'EnvironmentServiceInstancesConnectionEdge', node: { __typename?: 'ServiceInstance', id: string, serviceId: string, domains: { __typename?: 'AllDomains', serviceDomains: Array<{ __typename?: 'ServiceDomain', domain: string, id: string }> } } }> } } }> } };
+export type GetEnvironmentsQuery = { __typename?: 'Query', environments: { __typename?: 'QueryEnvironmentConnection', edges: Array<{ __typename?: 'QueryEnvironmentConnectionEdge', node: { __typename?: 'Environment', id: string, name: string, projectId: string } }>, pageInfo: { __typename?: 'PageInfo', endCursor?: string | null, hasNextPage: boolean } } };
 
 export type GetServiceQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -329,36 +352,52 @@ export const VariableCollectionUpsertDocument = gql`
   variableCollectionUpsert(input: $input)
 }
     `;
+export const GetEnvironmentDocument = gql`
+    query GetEnvironment($id: String!, $projectId: String) {
+  environment(id: $id, projectId: $projectId) {
+    id
+    name
+    projectId
+    deploymentTriggers {
+      edges {
+        node {
+          id
+          environmentId
+          branch
+          projectId
+        }
+      }
+    }
+    serviceInstances {
+      edges {
+        node {
+          id
+          domains {
+            serviceDomains {
+              domain
+              id
+            }
+          }
+          serviceId
+        }
+      }
+    }
+  }
+}
+    `;
 export const GetEnvironmentsDocument = gql`
-    query GetEnvironments($projectId: String!) {
-  environments(projectId: $projectId) {
+    query GetEnvironments($after: String, $first: Int, $projectId: String!) {
+  environments(after: $after, first: $first, projectId: $projectId) {
     edges {
       node {
         id
         name
-        deployments {
-          edges {
-            node {
-              id
-              status
-            }
-          }
-        }
-        serviceInstances {
-          edges {
-            node {
-              id
-              domains {
-                serviceDomains {
-                  domain
-                  id
-                }
-              }
-              serviceId
-            }
-          }
-        }
+        projectId
       }
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
     }
   }
 }
@@ -392,6 +431,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     VariableCollectionUpsert(variables: VariableCollectionUpsertMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<VariableCollectionUpsertMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<VariableCollectionUpsertMutation>(VariableCollectionUpsertDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'VariableCollectionUpsert', 'mutation', variables);
+    },
+    GetEnvironment(variables: GetEnvironmentQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetEnvironmentQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetEnvironmentQuery>(GetEnvironmentDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetEnvironment', 'query', variables);
     },
     GetEnvironments(variables: GetEnvironmentsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetEnvironmentsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetEnvironmentsQuery>(GetEnvironmentsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetEnvironments', 'query', variables);

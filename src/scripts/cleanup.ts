@@ -1,7 +1,16 @@
 import * as core from '@actions/core'
-import { PREVIEW_ENVIRONMENT_NAME, PROJECT_ID } from '../config'
+import {
+  PREVIEW_ENVIRONMENT_NAME,
+  PROJECT_ENVIRONMENT_ID,
+  PROJECT_ENVIRONMENT_NAME,
+  PROJECT_ID
+} from '../config'
+import {
+  findPreviewEnvironment,
+  resolveSourceEnvironment
+} from '../helpers/environment-selection'
 import { deleteEnvironment } from '../services/environments/delete-environment'
-import { getEnvironments } from '../services/environments/get-environments'
+import { getAllEnvironments } from '../services/environments/get-environments'
 
 /**
  * Function to clean up preview environments.
@@ -9,24 +18,30 @@ import { getEnvironments } from '../services/environments/get-environments'
  */
 export const cleanup = async (): Promise<void> => {
   try {
-    const { environments } = await getEnvironments({ projectId: PROJECT_ID })
-
-    const selectedEnvironments = environments.edges.filter(
-      edge => edge.node.name === PREVIEW_ENVIRONMENT_NAME
+    const environments = await getAllEnvironments({ projectId: PROJECT_ID })
+    const sourceEnvironment = resolveSourceEnvironment(environments, {
+      projectId: PROJECT_ID,
+      environmentId: PROJECT_ENVIRONMENT_ID || undefined,
+      environmentName: PROJECT_ENVIRONMENT_NAME || undefined
+    })
+    const selectedEnvironment = findPreviewEnvironment(
+      environments,
+      PREVIEW_ENVIRONMENT_NAME,
+      sourceEnvironment
     )
 
-    if (selectedEnvironments.length >= 1) {
-      const environmentId = selectedEnvironments[0].node.id
-      core.info(
-        `Deleting environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${environmentId})`
-      )
-      await deleteEnvironment({ id: environmentId })
-      core.info(`Environment ${PREVIEW_ENVIRONMENT_NAME} deleted successfully.`)
-    } else {
+    if (!selectedEnvironment) {
       core.info(
         `No environment found with the name: ${PREVIEW_ENVIRONMENT_NAME}`
       )
+      return
     }
+
+    core.info(
+      `Deleting environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`
+    )
+    await deleteEnvironment({ id: selectedEnvironment.id })
+    core.info(`Environment ${PREVIEW_ENVIRONMENT_NAME} deleted successfully.`)
   } catch (error) {
     core.setFailed(`Cleanup failed: ${(error as Error).message}`)
   }

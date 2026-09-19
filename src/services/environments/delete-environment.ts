@@ -10,6 +10,10 @@ export const deleteEnvironment = async ({
 }: DeleteEnvironmentMutationVariables): Promise<DeleteEnvironmentMutation> => {
   try {
     const result = await sdk.DeleteEnvironment({ id })
+    if (!result.environmentDelete) {
+      throw new Error(`Environment was not deleted (id: ${id})`)
+    }
+
     return result
   } catch (error) {
     core.setFailed(

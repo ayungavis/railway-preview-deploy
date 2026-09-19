@@ -1,0 +1,31 @@
+query GetEnvironment($id: String!, $projectId: String) {
+  environment(id: $id, projectId: $projectId) {
+    id
+    name
+    projectId
+    deploymentTriggers {
+      edges {
+        node {
+          id
+          environmentId
+          branch
+          projectId
+        }
+      }
+    }
+    serviceInstances {
+      edges {
+        node {
+          id
+          domains {
+            serviceDomains {
+              domain
+              id
+            }
+          }
+          serviceId
+        }
+      }
+    }
+  }
+}
