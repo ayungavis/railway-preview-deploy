@@ -1,4 +1,10 @@
 type Query {
+  deployment(id: String!): Deployment!
+  domains(
+    environmentId: String!
+    projectId: String!
+    serviceId: String!
+  ): AllDomains!
   environment(id: String!, projectId: String): Environment
   environments(
     after: String
@@ -14,6 +20,11 @@ type Query {
 type Mutation {
   environmentDelete(id: String!): Boolean!
   environmentCreate(input: EnvironmentCreateInput!): Environment!
+  serviceInstanceDeployV2(
+    commitSha: String
+    environmentId: String!
+    serviceId: String!
+  ): String!
   variableCollectionUpsert(input: VariableCollectionUpsertInput): Boolean!
   deploymentTriggerUpdate(
     id: String!
@@ -97,11 +108,11 @@ type DeploymentTrigger {
 }
 
 type EnvironmentDeploymentsConnection {
-  edges: [EnvironmentDeploymentsEdge!]!
+  edges: [EnvironmentDeploymentsConnectionEdge!]!
   pageInfo: PageInfo!
 }
 
-type EnvironmentDeploymentsEdge {
+type EnvironmentDeploymentsConnectionEdge {
   cursor: String!
   node: Deployment!
 }
@@ -109,6 +120,9 @@ type EnvironmentDeploymentsEdge {
 type Deployment {
   id: ID!
   status: String!
+  createdAt: String
+  staticUrl: String
+  url: String
 }
 
 type EnvironmentServiceInstancesConnection {

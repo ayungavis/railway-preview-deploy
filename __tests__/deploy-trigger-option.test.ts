@@ -1,4 +1,5 @@
 jest.mock('@actions/core', () => ({
+  getInput: jest.fn(),
   info: jest.fn(),
   setFailed: jest.fn(),
   setOutput: jest.fn()
@@ -6,16 +7,16 @@ jest.mock('@actions/core', () => ({
 
 jest.mock('../src/config', () => ({
   API_SERVICE_NAME: 'web',
-  BRANCH_NAME: '',
+  BRANCH_NAME: 'feature-branch',
   COMMIT_SHA: 'commit-sha',
   ENVIRONMENT_VARIABLES: '{}',
   IGNORE_SERVICE_REDEPLOY: '',
   PREVIEW_ENVIRONMENT_NAME: 'pr-123',
   PROJECT_ENVIRONMENT_ID: 'source-id',
-  PROJECT_ENVIRONMENT_NAME: 'wrong-name',
+  PROJECT_ENVIRONMENT_NAME: 'production',
   PROJECT_ID: 'project-id',
   REUSE_PREVIEW_ENVIRONMENT: 'true',
-  UPDATE_DEPLOYMENT_TRIGGERS: 'false'
+  UPDATE_DEPLOYMENT_TRIGGERS: 'true'
 }))
 
 jest.mock('../src/helpers/get-service-deployment-targets', () => ({
@@ -33,11 +34,8 @@ jest.mock('../src/helpers/update-environment-variables-for-services', () => ({
 jest.mock('../src/helpers/wait-for-deployment', () => ({
   waitForDeployment: jest.fn()
 }))
-jest.mock('../src/services/environments/create-environment', () => ({
-  createEnvironment: jest.fn()
-}))
-jest.mock('../src/services/environments/delete-environment', () => ({
-  deleteEnvironment: jest.fn()
+jest.mock('../src/services/deployments/service-instance-deploy-v2', () => ({
+  serviceInstanceDeployV2: jest.fn()
 }))
 jest.mock('../src/services/environments/get-environment', () => ({
   getEnvironment: jest.fn()
@@ -45,13 +43,11 @@ jest.mock('../src/services/environments/get-environment', () => ({
 jest.mock('../src/services/environments/get-environments', () => ({
   getAllEnvironments: jest.fn()
 }))
-jest.mock('../src/services/deployments/service-instance-deploy-v2', () => ({
-  serviceInstanceDeployV2: jest.fn()
-}))
 
 import { deploy } from '../src/scripts/deploy'
 import { getServiceDeploymentTargets } from '../src/helpers/get-service-deployment-targets'
 import { setServiceDomainOutput } from '../src/helpers/set-service-domain-output'
+import { updateAllDeploymentTriggers } from '../src/helpers/update-all-deployment-triggers'
 import { updateEnvironmentVariablesForServices } from '../src/helpers/update-environment-variables-for-services'
 import { waitForDeployment } from '../src/helpers/wait-for-deployment'
 import { getEnvironment } from '../src/services/environments/get-environment'
@@ -70,6 +66,10 @@ const getServiceDeploymentTargetsMock =
   >
 const setServiceDomainOutputMock =
   setServiceDomainOutput as jest.MockedFunction<typeof setServiceDomainOutput>
+const updateAllDeploymentTriggersMock =
+  updateAllDeploymentTriggers as jest.MockedFunction<
+    typeof updateAllDeploymentTriggers
+  >
 const updateEnvironmentVariablesMock =
   updateEnvironmentVariablesForServices as jest.MockedFunction<
     typeof updateEnvironmentVariablesForServices
@@ -80,44 +80,26 @@ const waitForDeploymentMock = waitForDeployment as jest.MockedFunction<
 const serviceInstanceDeployV2Mock =
   serviceInstanceDeployV2 as jest.MockedFunction<typeof serviceInstanceDeployV2>
 
-const sourceEnvironment = {
-  id: 'source-id',
-  name: 'production',
-  projectId: 'project-id'
-}
-const previewEnvironment = {
-  id: 'preview-id',
-  name: 'pr-123',
-  projectId: 'project-id'
-}
-const previewDetails = {
+const details = {
   id: 'preview-id',
   name: 'pr-123',
   projectId: 'project-id',
-  deploymentTriggers: { edges: [] },
-  serviceInstances: {
-    edges: [
-      {
-        node: {
-          id: 'instance-id',
-          serviceId: 'service-id',
-          domains: {
-            serviceDomains: [{ id: 'domain-id', domain: 'preview.example' }]
-          }
-        }
-      }
-    ]
-  }
+  deploymentTriggers: {
+    edges: [{ node: { id: 'trigger-1' } }, { node: { id: 'trigger-2' } }]
+  },
+  serviceInstances: { edges: [] }
 }
 
-describe('deploy environment targeting', () => {
+describe('deployment trigger option', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     getAllEnvironmentsMock.mockResolvedValue([
-      sourceEnvironment,
-      previewEnvironment
+      { id: 'source-id', name: 'production', projectId: 'project-id' },
+      { id: 'preview-id', name: 'pr-123', projectId: 'project-id' }
     ])
-    getEnvironmentMock.mockResolvedValue(previewDetails)
+    getEnvironmentMock.mockResolvedValue(details as never)
+    updateEnvironmentVariablesMock.mockResolvedValue()
+    updateAllDeploymentTriggersMock.mockResolvedValue()
     getServiceDeploymentTargetsMock.mockResolvedValue({
       serviceIds: ['service-id'],
       apiServiceId: 'service-id'
@@ -125,35 +107,35 @@ describe('deploy environment targeting', () => {
     serviceInstanceDeployV2Mock.mockResolvedValue('deployment-id')
     waitForDeploymentMock.mockResolvedValue()
     setServiceDomainOutputMock.mockResolvedValue()
-    updateEnvironmentVariablesMock.mockResolvedValue()
   })
 
-  it('syncs and deploys the requested commit when reusing a preview', async () => {
+  it('updates triggers only when explicitly enabled', async () => {
     await deploy()
 
-    expect(getAllEnvironmentsMock).toHaveBeenCalledWith({
-      projectId: 'project-id'
+    expect(updateAllDeploymentTriggersMock).toHaveBeenCalledWith({
+      deploymentTriggerIds: ['trigger-1', 'trigger-2'],
+      branchName: 'feature-branch'
     })
-    expect(getEnvironmentMock).toHaveBeenCalledWith({
-      id: 'preview-id',
-      projectId: 'project-id'
-    })
-    expect(updateEnvironmentVariablesMock).toHaveBeenCalledWith({
-      environmentId: 'preview-id',
-      projectId: 'project-id',
-      serviceInstances: previewDetails.serviceInstances,
-      environmentVariables: '{}'
-    })
-    expect(serviceInstanceDeployV2Mock).toHaveBeenCalledWith({
-      commitSha: 'commit-sha',
-      environmentId: 'preview-id',
-      serviceId: 'service-id'
-    })
-    expect(waitForDeploymentMock).toHaveBeenCalledWith('deployment-id')
-    expect(setServiceDomainOutputMock).toHaveBeenCalledWith({
-      environmentId: 'preview-id',
-      projectId: 'project-id',
-      serviceId: 'service-id'
-    })
+  })
+
+  it('does not deploy when trigger updates fail', async () => {
+    updateAllDeploymentTriggersMock.mockRejectedValueOnce(
+      new Error('trigger update failed')
+    )
+
+    await deploy()
+
+    expect(serviceInstanceDeployV2Mock).not.toHaveBeenCalled()
+  })
+
+  it('does not deploy when variable sync fails', async () => {
+    updateEnvironmentVariablesMock.mockRejectedValueOnce(
+      new Error('variable sync failed')
+    )
+
+    await deploy()
+
+    expect(updateAllDeploymentTriggersMock).not.toHaveBeenCalled()
+    expect(serviceInstanceDeployV2Mock).not.toHaveBeenCalled()
   })
 })

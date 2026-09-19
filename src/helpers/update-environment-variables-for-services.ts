@@ -39,10 +39,11 @@ export const updateEnvironmentVariablesForServices = async ({
     )
 
     await Promise.all(updatePromises)
-    core.info('All services redeployed with new environment variables')
+    core.info('Environment variables updated for all services')
   } catch (error) {
     core.setFailed(
       `Failed to update environment variables for services: ${(error as Error).message}`
     )
+    throw error
   }
 }

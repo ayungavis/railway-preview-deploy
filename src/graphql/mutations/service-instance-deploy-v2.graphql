@@ -1,0 +1,11 @@
+mutation ServiceInstanceDeployV2(
+  $commitSha: String!
+  $environmentId: String!
+  $serviceId: String!
+) {
+  serviceInstanceDeployV2(
+    commitSha: $commitSha
+    environmentId: $environmentId
+    serviceId: $serviceId
+  )
+}

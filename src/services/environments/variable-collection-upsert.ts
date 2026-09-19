@@ -10,6 +10,10 @@ export const variableCollectionUpsert = async ({
 }: VariableCollectionUpsertMutationVariables): Promise<VariableCollectionUpsertMutation> => {
   try {
     const result = await sdk.VariableCollectionUpsert({ input })
+    if (!result.variableCollectionUpsert) {
+      throw new Error('Railway rejected the environment variable update')
+    }
+
     return result
   } catch (error) {
     core.setFailed(
