@@ -12,7 +12,10 @@ export const PREVIEW_ENVIRONMENT_NAME = core.getInput(
 export const ENVIRONMENT_VARIABLES = core.getInput('environment_variables')
 export const API_SERVICE_NAME = core.getInput('api_service_name')
 export const IGNORE_SERVICE_REDEPLOY = core.getInput('ignore_service_redeploy')
+export const COMMIT_SHA = core.getInput('commit_sha')
 export const BRANCH_NAME = core.getInput('branch_name')
+export const UPDATE_DEPLOYMENT_TRIGGERS =
+  core.getInput('update_deployment_triggers') || 'false'
 export const REUSE_PREVIEW_ENVIRONMENT =
   core.getInput('reuse_preview_environment') || 'true'
 export const IS_CLEANUP = core.getInput('cleanup') || 'false'

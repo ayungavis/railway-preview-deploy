@@ -27,5 +27,6 @@ export const updateAllDeploymentTriggers = async ({
     core.setFailed(
       `Failed to update all deployment triggers: ${(error as Error).message}`
     )
+    throw error
   }
 }

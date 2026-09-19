@@ -1,0 +1,9 @@
+query GetDeployment($id: String!) {
+  deployment(id: $id) {
+    id
+    status
+    createdAt
+    staticUrl
+    url
+  }
+}

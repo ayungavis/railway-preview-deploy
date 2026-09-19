@@ -36,8 +36,11 @@ export type CustomDomain = {
 
 export type Deployment = {
   __typename?: 'Deployment';
+  createdAt?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  staticUrl?: Maybe<Scalars['String']['output']>;
   status: Scalars['String']['output'];
+  url?: Maybe<Scalars['String']['output']>;
 };
 
 export type DeploymentTrigger = {
@@ -95,12 +98,12 @@ export type EnvironmentDeploymentTriggersConnectionEdge = {
 
 export type EnvironmentDeploymentsConnection = {
   __typename?: 'EnvironmentDeploymentsConnection';
-  edges: Array<EnvironmentDeploymentsEdge>;
+  edges: Array<EnvironmentDeploymentsConnectionEdge>;
   pageInfo: PageInfo;
 };
 
-export type EnvironmentDeploymentsEdge = {
-  __typename?: 'EnvironmentDeploymentsEdge';
+export type EnvironmentDeploymentsConnectionEdge = {
+  __typename?: 'EnvironmentDeploymentsConnectionEdge';
   cursor: Scalars['String']['output'];
   node: Deployment;
 };
@@ -122,6 +125,7 @@ export type Mutation = {
   deploymentTriggerUpdate: DeploymentTrigger;
   environmentCreate: Environment;
   environmentDelete: Scalars['Boolean']['output'];
+  serviceInstanceDeployV2: Scalars['String']['output'];
   serviceInstanceRedeploy: Scalars['Boolean']['output'];
   variableCollectionUpsert: Scalars['Boolean']['output'];
 };
@@ -140,6 +144,13 @@ export type MutationEnvironmentCreateArgs = {
 
 export type MutationEnvironmentDeleteArgs = {
   id: Scalars['String']['input'];
+};
+
+
+export type MutationServiceInstanceDeployV2Args = {
+  commitSha?: InputMaybe<Scalars['String']['input']>;
+  environmentId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
 };
 
 
@@ -163,9 +174,23 @@ export type PageInfo = {
 
 export type Query = {
   __typename?: 'Query';
+  deployment: Deployment;
+  domains: AllDomains;
   environment?: Maybe<Environment>;
   environments: QueryEnvironmentConnection;
   service: Service;
+};
+
+
+export type QueryDeploymentArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type QueryDomainsArgs = {
+  environmentId: Scalars['String']['input'];
+  projectId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
 };
 
 
@@ -257,6 +282,15 @@ export type DeploymentTriggerUpdateMutationVariables = Exact<{
 
 export type DeploymentTriggerUpdateMutation = { __typename?: 'Mutation', deploymentTriggerUpdate: { __typename?: 'DeploymentTrigger', id: string } };
 
+export type ServiceInstanceDeployV2MutationVariables = Exact<{
+  commitSha: Scalars['String']['input'];
+  environmentId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
+}>;
+
+
+export type ServiceInstanceDeployV2Mutation = { __typename?: 'Mutation', serviceInstanceDeployV2: string };
+
 export type ServiceInstanceRedeployMutationVariables = Exact<{
   environmentId: Scalars['String']['input'];
   serviceId: Scalars['String']['input'];
@@ -271,6 +305,22 @@ export type VariableCollectionUpsertMutationVariables = Exact<{
 
 
 export type VariableCollectionUpsertMutation = { __typename?: 'Mutation', variableCollectionUpsert: boolean };
+
+export type GetDeploymentQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type GetDeploymentQuery = { __typename?: 'Query', deployment: { __typename?: 'Deployment', id: string, status: string, createdAt?: string | null, staticUrl?: string | null, url?: string | null } };
+
+export type GetDomainsQueryVariables = Exact<{
+  environmentId: Scalars['String']['input'];
+  projectId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
+}>;
+
+
+export type GetDomainsQuery = { __typename?: 'Query', domains: { __typename?: 'AllDomains', serviceDomains: Array<{ __typename?: 'ServiceDomain', id: string, domain: string, suffix?: string | null, targetPort?: number | null }>, customDomains: Array<{ __typename?: 'CustomDomain', id: string, domain: string, targetPort?: number | null }> } };
 
 export type GetEnvironmentQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -342,6 +392,15 @@ export const DeploymentTriggerUpdateDocument = gql`
   }
 }
     `;
+export const ServiceInstanceDeployV2Document = gql`
+    mutation ServiceInstanceDeployV2($commitSha: String!, $environmentId: String!, $serviceId: String!) {
+  serviceInstanceDeployV2(
+    commitSha: $commitSha
+    environmentId: $environmentId
+    serviceId: $serviceId
+  )
+}
+    `;
 export const ServiceInstanceRedeployDocument = gql`
     mutation ServiceInstanceRedeploy($environmentId: String!, $serviceId: String!) {
   serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
@@ -350,6 +409,38 @@ export const ServiceInstanceRedeployDocument = gql`
 export const VariableCollectionUpsertDocument = gql`
     mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
   variableCollectionUpsert(input: $input)
+}
+    `;
+export const GetDeploymentDocument = gql`
+    query GetDeployment($id: String!) {
+  deployment(id: $id) {
+    id
+    status
+    createdAt
+    staticUrl
+    url
+  }
+}
+    `;
+export const GetDomainsDocument = gql`
+    query GetDomains($environmentId: String!, $projectId: String!, $serviceId: String!) {
+  domains(
+    environmentId: $environmentId
+    projectId: $projectId
+    serviceId: $serviceId
+  ) {
+    serviceDomains {
+      id
+      domain
+      suffix
+      targetPort
+    }
+    customDomains {
+      id
+      domain
+      targetPort
+    }
+  }
 }
     `;
 export const GetEnvironmentDocument = gql`
@@ -426,11 +517,20 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     DeploymentTriggerUpdate(variables: DeploymentTriggerUpdateMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<DeploymentTriggerUpdateMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<DeploymentTriggerUpdateMutation>(DeploymentTriggerUpdateDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'DeploymentTriggerUpdate', 'mutation', variables);
     },
+    ServiceInstanceDeployV2(variables: ServiceInstanceDeployV2MutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ServiceInstanceDeployV2Mutation> {
+      return withWrapper((wrappedRequestHeaders) => client.request<ServiceInstanceDeployV2Mutation>(ServiceInstanceDeployV2Document, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ServiceInstanceDeployV2', 'mutation', variables);
+    },
     ServiceInstanceRedeploy(variables: ServiceInstanceRedeployMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ServiceInstanceRedeployMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<ServiceInstanceRedeployMutation>(ServiceInstanceRedeployDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ServiceInstanceRedeploy', 'mutation', variables);
     },
     VariableCollectionUpsert(variables: VariableCollectionUpsertMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<VariableCollectionUpsertMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<VariableCollectionUpsertMutation>(VariableCollectionUpsertDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'VariableCollectionUpsert', 'mutation', variables);
+    },
+    GetDeployment(variables: GetDeploymentQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetDeploymentQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetDeploymentQuery>(GetDeploymentDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetDeployment', 'query', variables);
+    },
+    GetDomains(variables: GetDomainsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetDomainsQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetDomainsQuery>(GetDomainsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetDomains', 'query', variables);
     },
     GetEnvironment(variables: GetEnvironmentQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetEnvironmentQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetEnvironmentQuery>(GetEnvironmentDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetEnvironment', 'query', variables);

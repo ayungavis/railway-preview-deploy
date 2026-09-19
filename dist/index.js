@@ -53289,7 +53289,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.IS_CLEANUP = exports.REUSE_PREVIEW_ENVIRONMENT = exports.BRANCH_NAME = exports.IGNORE_SERVICE_REDEPLOY = exports.API_SERVICE_NAME = exports.ENVIRONMENT_VARIABLES = exports.PREVIEW_ENVIRONMENT_NAME = exports.PROJECT_ENVIRONMENT_ID = exports.PROJECT_ENVIRONMENT_NAME = exports.PROJECT_ID = exports.RAILWAY_ENDPOINT = void 0;
+exports.IS_CLEANUP = exports.REUSE_PREVIEW_ENVIRONMENT = exports.UPDATE_DEPLOYMENT_TRIGGERS = exports.BRANCH_NAME = exports.COMMIT_SHA = exports.IGNORE_SERVICE_REDEPLOY = exports.API_SERVICE_NAME = exports.ENVIRONMENT_VARIABLES = exports.PREVIEW_ENVIRONMENT_NAME = exports.PROJECT_ENVIRONMENT_ID = exports.PROJECT_ENVIRONMENT_NAME = exports.PROJECT_ID = exports.RAILWAY_ENDPOINT = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 exports.RAILWAY_ENDPOINT = 'https://backboard.railway.app/graphql/v2';
 // Action inputs
@@ -53300,7 +53300,9 @@ exports.PREVIEW_ENVIRONMENT_NAME = core.getInput('preview_environment_name');
 exports.ENVIRONMENT_VARIABLES = core.getInput('environment_variables');
 exports.API_SERVICE_NAME = core.getInput('api_service_name');
 exports.IGNORE_SERVICE_REDEPLOY = core.getInput('ignore_service_redeploy');
+exports.COMMIT_SHA = core.getInput('commit_sha');
 exports.BRANCH_NAME = core.getInput('branch_name');
+exports.UPDATE_DEPLOYMENT_TRIGGERS = core.getInput('update_deployment_triggers') || 'false';
 exports.REUSE_PREVIEW_ENVIRONMENT = core.getInput('reuse_preview_environment') || 'true';
 exports.IS_CLEANUP = core.getInput('cleanup') || 'false';
 
@@ -53361,7 +53363,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetServiceDocument = exports.GetEnvironmentsDocument = exports.GetEnvironmentDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceRedeployDocument = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
+exports.GetServiceDocument = exports.GetEnvironmentsDocument = exports.GetEnvironmentDocument = exports.GetDomainsDocument = exports.GetDeploymentDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceRedeployDocument = exports.ServiceInstanceDeployV2Document = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
 exports.getSdk = getSdk;
 const graphql_tag_1 = __importDefault(__nccwpck_require__(8435));
 exports.CreateEnvironmentDocument = (0, graphql_tag_1.default) `
@@ -53409,6 +53411,15 @@ exports.DeploymentTriggerUpdateDocument = (0, graphql_tag_1.default) `
   }
 }
     `;
+exports.ServiceInstanceDeployV2Document = (0, graphql_tag_1.default) `
+    mutation ServiceInstanceDeployV2($commitSha: String!, $environmentId: String!, $serviceId: String!) {
+  serviceInstanceDeployV2(
+    commitSha: $commitSha
+    environmentId: $environmentId
+    serviceId: $serviceId
+  )
+}
+    `;
 exports.ServiceInstanceRedeployDocument = (0, graphql_tag_1.default) `
     mutation ServiceInstanceRedeploy($environmentId: String!, $serviceId: String!) {
   serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
@@ -53417,6 +53428,38 @@ exports.ServiceInstanceRedeployDocument = (0, graphql_tag_1.default) `
 exports.VariableCollectionUpsertDocument = (0, graphql_tag_1.default) `
     mutation VariableCollectionUpsert($input: VariableCollectionUpsertInput!) {
   variableCollectionUpsert(input: $input)
+}
+    `;
+exports.GetDeploymentDocument = (0, graphql_tag_1.default) `
+    query GetDeployment($id: String!) {
+  deployment(id: $id) {
+    id
+    status
+    createdAt
+    staticUrl
+    url
+  }
+}
+    `;
+exports.GetDomainsDocument = (0, graphql_tag_1.default) `
+    query GetDomains($environmentId: String!, $projectId: String!, $serviceId: String!) {
+  domains(
+    environmentId: $environmentId
+    projectId: $projectId
+    serviceId: $serviceId
+  ) {
+    serviceDomains {
+      id
+      domain
+      suffix
+      targetPort
+    }
+    customDomains {
+      id
+      domain
+      targetPort
+    }
+  }
 }
     `;
 exports.GetEnvironmentDocument = (0, graphql_tag_1.default) `
@@ -53488,11 +53531,20 @@ function getSdk(client, withWrapper = defaultWrapper) {
         DeploymentTriggerUpdate(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.DeploymentTriggerUpdateDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'DeploymentTriggerUpdate', 'mutation', variables);
         },
+        ServiceInstanceDeployV2(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.ServiceInstanceDeployV2Document, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'ServiceInstanceDeployV2', 'mutation', variables);
+        },
         ServiceInstanceRedeploy(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.ServiceInstanceRedeployDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'ServiceInstanceRedeploy', 'mutation', variables);
         },
         VariableCollectionUpsert(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.VariableCollectionUpsertDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'VariableCollectionUpsert', 'mutation', variables);
+        },
+        GetDeployment(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.GetDeploymentDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetDeployment', 'query', variables);
+        },
+        GetDomains(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.GetDomainsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetDomains', 'query', variables);
         },
         GetEnvironment(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.GetEnvironmentDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetEnvironment', 'query', variables);
@@ -53560,48 +53612,38 @@ exports.findPreviewEnvironment = findPreviewEnvironment;
 
 /***/ }),
 
-/***/ 995:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ 3161:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.redeployAllServices = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const service_instance_redeploy_1 = __nccwpck_require__(9721);
-const redeployAllServices = async ({ environmentId, serviceIds }) => {
-    try {
-        const redeployPromises = serviceIds.map(async (serviceId) => await (0, service_instance_redeploy_1.serviceInstanceRedeploy)({ environmentId, serviceId }));
-        await Promise.all(redeployPromises);
+exports.getServiceDeploymentTargets = void 0;
+const get_service_1 = __nccwpck_require__(5304);
+const getServiceDeploymentTargets = async ({ serviceInstances, ignoredServices, apiServiceName }) => {
+    const serviceIds = [];
+    let apiServiceId;
+    let fallbackApiServiceId;
+    for (const serviceInstance of serviceInstances.edges) {
+        const { serviceId } = serviceInstance.node;
+        const { service } = await (0, get_service_1.getService)({ id: serviceId });
+        const { name } = service;
+        if (!ignoredServices.includes(name)) {
+            serviceIds.push(serviceId);
+        }
+        if (apiServiceName && name === apiServiceName) {
+            apiServiceId = serviceId;
+        }
+        if (!fallbackApiServiceId && ['app', 'backend', 'web'].includes(name)) {
+            fallbackApiServiceId = serviceId;
+        }
     }
-    catch (error) {
-        core.setFailed(`Failed to redeploy all services: ${error.message}`);
-    }
+    return {
+        serviceIds,
+        apiServiceId: apiServiceName ? apiServiceId : fallbackApiServiceId
+    };
 };
-exports.redeployAllServices = redeployAllServices;
+exports.getServiceDeploymentTargets = getServiceDeploymentTargets;
 
 
 /***/ }),
@@ -53637,27 +53679,19 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.setServiceDomainOutput = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-const get_service_1 = __nccwpck_require__(5304);
-const setServiceDomainOutput = async ({ serviceInstances, ignoredServices, apiServiceName }) => {
-    const servicesNeedRedeploy = [];
-    for (const serviceInstance of serviceInstances.edges) {
-        const { domains, serviceId } = serviceInstance.node;
-        const { service } = await (0, get_service_1.getService)({ id: serviceId });
-        const { name } = service;
-        if (!ignoredServices.includes(name)) {
-            servicesNeedRedeploy.push(serviceId);
-        }
-        if ((apiServiceName && name === apiServiceName) ||
-            name === 'app' ||
-            name === 'backend' ||
-            name === 'web') {
-            const domain = domains.serviceDomains?.[0]?.domain;
-            console.log(`Service information:`);
-            console.dir({ name, domain }, { depth: null });
-            core.setOutput('service_domain', domain);
-        }
+const get_domains_1 = __nccwpck_require__(1986);
+const setServiceDomainOutput = async ({ environmentId, projectId, serviceId }) => {
+    const domains = await (0, get_domains_1.getDomains)({
+        environmentId,
+        projectId,
+        serviceId
+    });
+    const domain = domains.serviceDomains[0]?.domain;
+    if (!domain) {
+        throw new Error(`No Railway service domain found for service ${serviceId}`);
     }
-    return servicesNeedRedeploy;
+    core.info(`Service domain: ${domain}`);
+    core.setOutput('service_domain', domain);
 };
 exports.setServiceDomainOutput = setServiceDomainOutput;
 
@@ -53709,6 +53743,7 @@ const updateAllDeploymentTriggers = async ({ deploymentTriggerIds, branchName })
     }
     catch (error) {
         core.setFailed(`Failed to update all deployment triggers: ${error.message}`);
+        throw error;
     }
 };
 exports.updateAllDeploymentTriggers = updateAllDeploymentTriggers;
@@ -53767,13 +53802,54 @@ const updateEnvironmentVariablesForServices = async ({ environmentId, projectId,
             }
         }));
         await Promise.all(updatePromises);
-        core.info('All services redeployed with new environment variables');
+        core.info('Environment variables updated for all services');
     }
     catch (error) {
         core.setFailed(`Failed to update environment variables for services: ${error.message}`);
+        throw error;
     }
 };
 exports.updateEnvironmentVariablesForServices = updateEnvironmentVariablesForServices;
+
+
+/***/ }),
+
+/***/ 3681:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.waitForDeployment = void 0;
+const get_deployment_1 = __nccwpck_require__(7327);
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const SUCCESS_STATUS = 'SUCCESS';
+const FAILURE_STATUSES = new Set([
+    'FAILED',
+    'CRASHED',
+    'SKIPPED',
+    'REMOVING',
+    'REMOVED'
+]);
+const sleep = async (milliseconds) => await new Promise(resolve => setTimeout(resolve, milliseconds));
+const waitForDeployment = async (deploymentId, { now = Date.now, poll = get_deployment_1.getDeployment, sleep: wait = sleep, timeoutMs = POLL_TIMEOUT_MS, intervalMs = POLL_INTERVAL_MS } = {}) => {
+    const startedAt = now();
+    let lastStatus = 'UNKNOWN';
+    while (now() - startedAt <= timeoutMs) {
+        const deployment = await poll(deploymentId);
+        lastStatus = deployment.status;
+        if (deployment.status === SUCCESS_STATUS) {
+            return;
+        }
+        if (FAILURE_STATUSES.has(deployment.status)) {
+            throw new Error(`Deployment ${deploymentId} failed with status ${deployment.status}`);
+        }
+        await wait(intervalMs);
+    }
+    throw new Error(`Deployment ${deploymentId} timed out with status ${lastStatus}`);
+};
+exports.waitForDeployment = waitForDeployment;
 
 
 /***/ }),
@@ -53932,19 +54008,29 @@ exports.deploy = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const config_1 = __nccwpck_require__(6373);
 const environment_selection_1 = __nccwpck_require__(6729);
-const redeploy_all_services_1 = __nccwpck_require__(995);
+const get_service_deployment_targets_1 = __nccwpck_require__(3161);
 const set_service_domain_output_1 = __nccwpck_require__(7412);
 const update_all_deployment_triggers_1 = __nccwpck_require__(4250);
 const update_environment_variables_for_services_1 = __nccwpck_require__(1219);
+const wait_for_deployment_1 = __nccwpck_require__(3681);
 const create_environment_1 = __nccwpck_require__(7127);
 const delete_environment_1 = __nccwpck_require__(1585);
 const get_environment_1 = __nccwpck_require__(8823);
 const get_environments_1 = __nccwpck_require__(9918);
+const service_instance_deploy_v2_1 = __nccwpck_require__(4630);
+const parseIgnoredServices = () => config_1.IGNORE_SERVICE_REDEPLOY ? JSON.parse(config_1.IGNORE_SERVICE_REDEPLOY) : [];
+const validateInputs = () => {
+    if (!config_1.COMMIT_SHA) {
+        throw new Error('commit_sha is required when deploying a preview environment');
+    }
+    if (config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true' && !config_1.BRANCH_NAME) {
+        throw new Error('branch_name is required when update_deployment_triggers is enabled');
+    }
+};
 const deploy = async () => {
     try {
-        const ignoredServices = config_1.IGNORE_SERVICE_REDEPLOY
-            ? JSON.parse(config_1.IGNORE_SERVICE_REDEPLOY)
-            : [];
+        validateInputs();
+        const ignoredServices = parseIgnoredServices();
         const environments = await (0, get_environments_1.getAllEnvironments)({ projectId: config_1.PROJECT_ID });
         const sourceEnvironment = (0, environment_selection_1.resolveSourceEnvironment)(environments, {
             projectId: config_1.PROJECT_ID,
@@ -53952,60 +54038,63 @@ const deploy = async () => {
             environmentName: config_1.PROJECT_ENVIRONMENT_NAME || undefined
         });
         const selectedEnvironment = (0, environment_selection_1.findPreviewEnvironment)(environments, config_1.PREVIEW_ENVIRONMENT_NAME, sourceEnvironment);
-        if (selectedEnvironment) {
-            core.info(`Environment found: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
-            if (config_1.REUSE_PREVIEW_ENVIRONMENT === 'true') {
-                core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
-                const existingEnvironment = await (0, get_environment_1.getEnvironment)({
-                    id: selectedEnvironment.id,
-                    projectId: config_1.PROJECT_ID
-                });
-                (0, set_service_domain_output_1.setServiceDomainOutput)({
-                    serviceInstances: existingEnvironment.serviceInstances,
-                    ignoredServices,
-                    apiServiceName: config_1.API_SERVICE_NAME
-                });
-                return;
-            }
+        let environmentId = selectedEnvironment?.id;
+        if (selectedEnvironment && config_1.REUSE_PREVIEW_ENVIRONMENT !== 'true') {
             core.info(`Deleting environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
             await (0, delete_environment_1.deleteEnvironment)({ id: selectedEnvironment.id });
+            environmentId = undefined;
         }
-        const createdEnvironment = await (0, create_environment_1.createEnvironment)({
-            input: {
-                name: config_1.PREVIEW_ENVIRONMENT_NAME,
-                projectId: config_1.PROJECT_ID,
-                sourceEnvironmentId: sourceEnvironment.id
-            }
-        });
-        const environmentId = createdEnvironment.environmentCreate.id;
+        if (!environmentId) {
+            const createdEnvironment = await (0, create_environment_1.createEnvironment)({
+                input: {
+                    name: config_1.PREVIEW_ENVIRONMENT_NAME,
+                    projectId: config_1.PROJECT_ID,
+                    sourceEnvironmentId: sourceEnvironment.id,
+                    skipInitialDeploys: true
+                }
+            });
+            environmentId = createdEnvironment.environmentCreate.id;
+        }
+        else {
+            core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${environmentId})`);
+        }
         const environment = await (0, get_environment_1.getEnvironment)({
             id: environmentId,
             projectId: config_1.PROJECT_ID
         });
-        console.log('Created environment:');
-        console.dir({ id: environment.id, name: environment.name }, { depth: null });
-        const deploymentTriggerIds = environment.deploymentTriggers.edges.map(({ node }) => node.id);
-        // Update the environment variables for the services
         await (0, update_environment_variables_for_services_1.updateEnvironmentVariablesForServices)({
             environmentId: environment.id,
             projectId: config_1.PROJECT_ID,
             serviceInstances: environment.serviceInstances,
             environmentVariables: config_1.ENVIRONMENT_VARIABLES
         });
-        console.log('Waiting 15 seconds for deployments to initialize and become available...');
-        await new Promise(resolve => setTimeout(resolve, 15000));
-        await (0, update_all_deployment_triggers_1.updateAllDeploymentTriggers)({
-            deploymentTriggerIds,
-            branchName: config_1.BRANCH_NAME
-        });
-        const servicesNeedRedeploy = await (0, set_service_domain_output_1.setServiceDomainOutput)({
+        if (config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true') {
+            await (0, update_all_deployment_triggers_1.updateAllDeploymentTriggers)({
+                deploymentTriggerIds: environment.deploymentTriggers.edges.map(({ node }) => node.id),
+                branchName: config_1.BRANCH_NAME
+            });
+        }
+        const { serviceIds, apiServiceId } = await (0, get_service_deployment_targets_1.getServiceDeploymentTargets)({
             serviceInstances: environment.serviceInstances,
             ignoredServices,
             apiServiceName: config_1.API_SERVICE_NAME
         });
-        await (0, redeploy_all_services_1.redeployAllServices)({
+        if (serviceIds.length === 0) {
+            throw new Error('No services are available for deployment');
+        }
+        const deploymentIds = await Promise.all(serviceIds.map(async (serviceId) => await (0, service_instance_deploy_v2_1.serviceInstanceDeployV2)({
+            commitSha: config_1.COMMIT_SHA,
             environmentId: environment.id,
-            serviceIds: servicesNeedRedeploy
+            serviceId
+        })));
+        await Promise.all(deploymentIds.map(async (deploymentId) => await (0, wait_for_deployment_1.waitForDeployment)(deploymentId)));
+        if (!apiServiceId) {
+            throw new Error('No API service found for the preview environment');
+        }
+        await (0, set_service_domain_output_1.setServiceDomainOutput)({
+            environmentId: environment.id,
+            projectId: config_1.PROJECT_ID,
+            serviceId: apiServiceId
         });
     }
     catch (error) {
@@ -54064,7 +54153,7 @@ exports.deploymentTriggerUpdate = deploymentTriggerUpdate;
 
 /***/ }),
 
-/***/ 9721:
+/***/ 7327:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -54093,26 +54182,125 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.serviceInstanceRedeploy = void 0;
+exports.getDeployment = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_1 = __nccwpck_require__(7202);
-const serviceInstanceRedeploy = async ({ environmentId, serviceId }) => {
-    console.log('Redeploying service...');
-    console.log(`Environment ID: ${environmentId}`);
-    console.log(`Service ID: ${serviceId}`);
+const getDeployment = async (id) => {
     try {
-        const result = await client_1.sdk.ServiceInstanceRedeploy({
-            environmentId,
-            serviceId
-        });
-        return result;
+        const result = await client_1.sdk.GetDeployment({ id });
+        if (!result.deployment) {
+            throw new Error(`Deployment not found: ${id}`);
+        }
+        return result.deployment;
     }
     catch (error) {
-        core.setFailed(`Failed to redeploy the service instance (environment ID: ${environmentId}, service ID: ${serviceId}): ${error.message}`);
+        core.setFailed(`Failed to get deployment ${id}: ${error.message}`);
         throw error;
     }
 };
-exports.serviceInstanceRedeploy = serviceInstanceRedeploy;
+exports.getDeployment = getDeployment;
+
+
+/***/ }),
+
+/***/ 4630:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.serviceInstanceDeployV2 = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const client_1 = __nccwpck_require__(7202);
+const serviceInstanceDeployV2 = async ({ commitSha, environmentId, serviceId }) => {
+    try {
+        const result = await client_1.sdk.ServiceInstanceDeployV2({
+            commitSha,
+            environmentId,
+            serviceId
+        });
+        const deploymentId = result.serviceInstanceDeployV2;
+        if (!deploymentId) {
+            throw new Error(`Railway did not return a deployment ID for service ${serviceId}`);
+        }
+        return deploymentId;
+    }
+    catch (error) {
+        core.setFailed(`Failed to deploy service ${serviceId}: ${error.message}`);
+        throw error;
+    }
+};
+exports.serviceInstanceDeployV2 = serviceInstanceDeployV2;
+
+
+/***/ }),
+
+/***/ 1986:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getDomains = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const client_1 = __nccwpck_require__(7202);
+const getDomains = async (variables) => {
+    try {
+        const result = await client_1.sdk.GetDomains(variables);
+        return result.domains;
+    }
+    catch (error) {
+        core.setFailed(`Failed to get domains: ${error.message}`);
+        throw error;
+    }
+};
+exports.getDomains = getDomains;
 
 
 /***/ }),
@@ -54377,6 +54565,9 @@ const client_1 = __nccwpck_require__(7202);
 const variableCollectionUpsert = async ({ input }) => {
     try {
         const result = await client_1.sdk.VariableCollectionUpsert({ input });
+        if (!result.variableCollectionUpsert) {
+            throw new Error('Railway rejected the environment variable update');
+        }
         return result;
     }
     catch (error) {
