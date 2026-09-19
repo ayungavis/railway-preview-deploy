@@ -32,7 +32,7 @@ jobs:
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
           environment_name: production
           preview_environment_name: 'pr-${{ github.event.pull_request.number }}'
-          api_service_name: web
+          api_service_name: frontend
           commit_sha: ${{ github.event.pull_request.head.sha }}
 
       - name: Print Output
@@ -50,7 +50,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              per_page: 100 
+              per_page: 100
             });
             const latestCommit = commits[commits.length - 1];
             const latestCommitSha = latestCommit.sha.substring(0, 7);
@@ -71,8 +71,8 @@ jobs:
 
               ---
 
-              *commit: ${latestCommitSha}*  
-              *author: ${latestCommitAuthor}* 
+              *commit: ${latestCommitSha}*
+              *author: ${latestCommitAuthor}*
             `;
 
             const existingComment = comments.find(comment => comment.body.includes(marker));
