@@ -33,7 +33,7 @@ jobs:
           environment_name: production
           preview_environment_name: 'pr-${{ github.event.pull_request.number }}'
           api_service_name: web
-          branch_name: ${{ github.head_ref }}
+          commit_sha: ${{ github.event.pull_request.head.sha }}
 
       - name: Print Output
         id: output
@@ -112,5 +112,4 @@ jobs:
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
           environment_name: production
           preview_environment_name: 'pr-${{ github.event.pull_request.number }}'
-          branch_name: ${{ github.head_ref }}
           cleanup: 'true'
