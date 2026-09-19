@@ -102,7 +102,8 @@ describe('deployment trigger option', () => {
     updateAllDeploymentTriggersMock.mockResolvedValue()
     getServiceDeploymentTargetsMock.mockResolvedValue({
       serviceIds: ['service-id'],
-      apiServiceId: 'service-id'
+      apiServiceId: 'service-id',
+      sourceKind: 'repository'
     })
     serviceInstanceDeployV2Mock.mockResolvedValue('deployment-id')
     waitForDeploymentMock.mockResolvedValue()

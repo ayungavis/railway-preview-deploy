@@ -111,7 +111,8 @@ describe('create environment deployment', () => {
     getEnvironmentMock.mockResolvedValue(createdEnvironment)
     getServiceDeploymentTargetsMock.mockResolvedValue({
       serviceIds: ['service-id'],
-      apiServiceId: 'service-id'
+      apiServiceId: 'service-id',
+      sourceKind: 'repository'
     })
     serviceInstanceDeployV2Mock.mockResolvedValue('deployment-id')
     updateEnvironmentVariablesMock.mockResolvedValue()

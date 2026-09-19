@@ -91,6 +91,20 @@ export const deploy = async (): Promise<void> => {
       projectId: PROJECT_ID
     })
 
+    const { serviceIds, apiServiceId, sourceKind } =
+      await getServiceDeploymentTargets({
+        environmentId: environment.id,
+        serviceInstances: environment.serviceInstances,
+        ignoredServices,
+        apiServiceName: API_SERVICE_NAME
+      })
+
+    if (sourceKind !== 'repository') {
+      throw new Error(
+        `Docker image deployment is not supported by commit mode (source: ${sourceKind})`
+      )
+    }
+
     await updateEnvironmentVariablesForServices({
       environmentId: environment.id,
       projectId: PROJECT_ID,
@@ -106,12 +120,6 @@ export const deploy = async (): Promise<void> => {
         branchName: BRANCH_NAME
       })
     }
-
-    const { serviceIds, apiServiceId } = await getServiceDeploymentTargets({
-      serviceInstances: environment.serviceInstances,
-      ignoredServices,
-      apiServiceName: API_SERVICE_NAME
-    })
 
     if (serviceIds.length === 0) {
       throw new Error('No services are available for deployment')

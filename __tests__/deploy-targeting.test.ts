@@ -120,7 +120,8 @@ describe('deploy environment targeting', () => {
     getEnvironmentMock.mockResolvedValue(previewDetails)
     getServiceDeploymentTargetsMock.mockResolvedValue({
       serviceIds: ['service-id'],
-      apiServiceId: 'service-id'
+      apiServiceId: 'service-id',
+      sourceKind: 'repository'
     })
     serviceInstanceDeployV2Mock.mockResolvedValue('deployment-id')
     waitForDeploymentMock.mockResolvedValue()
