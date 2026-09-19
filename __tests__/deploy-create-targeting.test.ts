@@ -1,4 +1,5 @@
 jest.mock('@actions/core', () => ({
+  getInput: jest.fn(),
   info: jest.fn(),
   setFailed: jest.fn(),
   setOutput: jest.fn()
@@ -8,6 +9,8 @@ jest.mock('../src/config', () => ({
   API_SERVICE_NAME: 'web',
   BRANCH_NAME: '',
   COMMIT_SHA: 'commit-sha',
+  DEPLOYMENT_MODE: 'commit',
+  IMAGE_REF: '',
   ENVIRONMENT_VARIABLES: '{}',
   IGNORE_SERVICE_REDEPLOY: '',
   PREVIEW_ENVIRONMENT_NAME: 'pr-123',
