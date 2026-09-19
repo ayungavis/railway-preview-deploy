@@ -42,12 +42,6 @@ const validateInputs = (): void => {
   if (DEPLOYMENT_MODE === 'commit' && !COMMIT_SHA) {
     throw new Error('commit_sha is required for commit deployment')
   }
-
-  if (UPDATE_DEPLOYMENT_TRIGGERS === 'true' && !BRANCH_NAME) {
-    throw new Error(
-      'branch_name is required when update_deployment_triggers is enabled'
-    )
-  }
 }
 
 const validateImageRef = (): string => {
@@ -120,6 +114,16 @@ export const deploy = async (): Promise<void> => {
       imageRef: IMAGE_REF || undefined,
       updateDeploymentTriggers: UPDATE_DEPLOYMENT_TRIGGERS
     })
+
+    if (
+      resolvedMode === 'commit' &&
+      UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+      !BRANCH_NAME
+    ) {
+      throw new Error(
+        'branch_name is required when update_deployment_triggers is enabled'
+      )
+    }
 
     await updateEnvironmentVariablesForServices({
       environmentId: environment.id,

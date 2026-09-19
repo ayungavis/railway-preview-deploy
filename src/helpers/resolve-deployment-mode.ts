@@ -23,12 +23,12 @@ export const resolveDeploymentMode = ({
     throw new Error(`Invalid deployment_mode: ${mode}`)
   }
 
-  if (mode === 'commit' || (mode === 'auto' && sourceKind === 'repository')) {
+  if (mode === 'commit') {
     if (!commitSha) {
       throw new Error('commit_sha is required for repository deployment')
     }
 
-    if (mode === 'commit' && imageRef) {
+    if (imageRef) {
       throw new Error('image_ref cannot be used with deployment_mode commit')
     }
 
@@ -36,6 +36,14 @@ export const resolveDeploymentMode = ({
       throw new Error(
         'deployment_mode commit requires a repository-backed service'
       )
+    }
+
+    return 'commit'
+  }
+
+  if (mode === 'auto' && sourceKind === 'repository') {
+    if (!commitSha) {
+      throw new Error('commit_sha is required for repository deployment')
     }
 
     return 'commit'
@@ -49,7 +57,7 @@ export const resolveDeploymentMode = ({
     throw new Error('image_ref is required for image deployment')
   }
 
-  if (commitSha) {
+  if (mode === 'image' && commitSha) {
     throw new Error('commit_sha cannot be used for image deployment')
   }
 
