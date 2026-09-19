@@ -1,32 +1,15 @@
-query GetEnvironments($projectId: String!) {
-  environments(projectId: $projectId) {
+query GetEnvironments($after: String, $first: Int, $projectId: String!) {
+  environments(after: $after, first: $first, projectId: $projectId) {
     edges {
       node {
         id
         name
-        deployments {
-          edges {
-            node {
-              id
-              status
-            }
-          }
-        }
-        serviceInstances {
-          edges {
-            node {
-              id
-              domains {
-                serviceDomains {
-                  domain
-                  id
-                }
-              }
-              serviceId
-            }
-          }
-        }
+        projectId
       }
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
     }
   }
 }

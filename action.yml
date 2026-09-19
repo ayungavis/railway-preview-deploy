@@ -20,12 +20,14 @@ inputs:
       Settings > General page'
     required: true
   environment_name:
-    description: 'The environment name to be base of the preview deployment'
-    required: true
+    description:
+      'The source environment name. Provide this or environment_id;
+      environment_id takes precedence.'
+    required: false
   environment_id:
     description:
-      "The environment ID to be base of the preview deployment. If it's
-      provided, the `environment_name` will be ignored"
+      'The source environment ID. Provide this or environment_name; this ID
+      takes precedence.'
     required: false
   preview_environment_name:
     description:

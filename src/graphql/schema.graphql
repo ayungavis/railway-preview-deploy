@@ -1,5 +1,13 @@
 type Query {
-  environments(projectId: String!): QueryEnvironmentConnection!
+  environment(id: String!, projectId: String): Environment
+  environments(
+    after: String
+    before: String
+    first: Int
+    isEphemeral: Boolean
+    last: Int
+    projectId: String!
+  ): QueryEnvironmentConnection!
   service(id: String!): Service!
 }
 
@@ -58,6 +66,7 @@ type QueryEnvironmentConnectionEdge {
 type Environment {
   id: ID!
   name: String!
+  projectId: String!
   createdAt: String!
   deployments: EnvironmentDeploymentsConnection!
   serviceInstances: EnvironmentServiceInstancesConnection!

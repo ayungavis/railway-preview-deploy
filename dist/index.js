@@ -53361,7 +53361,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetServiceDocument = exports.GetEnvironmentsDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceRedeployDocument = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
+exports.GetServiceDocument = exports.GetEnvironmentsDocument = exports.GetEnvironmentDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceRedeployDocument = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
 exports.getSdk = getSdk;
 const graphql_tag_1 = __importDefault(__nccwpck_require__(8435));
 exports.CreateEnvironmentDocument = (0, graphql_tag_1.default) `
@@ -53419,36 +53419,52 @@ exports.VariableCollectionUpsertDocument = (0, graphql_tag_1.default) `
   variableCollectionUpsert(input: $input)
 }
     `;
+exports.GetEnvironmentDocument = (0, graphql_tag_1.default) `
+    query GetEnvironment($id: String!, $projectId: String) {
+  environment(id: $id, projectId: $projectId) {
+    id
+    name
+    projectId
+    deploymentTriggers {
+      edges {
+        node {
+          id
+          environmentId
+          branch
+          projectId
+        }
+      }
+    }
+    serviceInstances {
+      edges {
+        node {
+          id
+          domains {
+            serviceDomains {
+              domain
+              id
+            }
+          }
+          serviceId
+        }
+      }
+    }
+  }
+}
+    `;
 exports.GetEnvironmentsDocument = (0, graphql_tag_1.default) `
-    query GetEnvironments($projectId: String!) {
-  environments(projectId: $projectId) {
+    query GetEnvironments($after: String, $first: Int, $projectId: String!) {
+  environments(after: $after, first: $first, projectId: $projectId) {
     edges {
       node {
         id
         name
-        deployments {
-          edges {
-            node {
-              id
-              status
-            }
-          }
-        }
-        serviceInstances {
-          edges {
-            node {
-              id
-              domains {
-                serviceDomains {
-                  domain
-                  id
-                }
-              }
-              serviceId
-            }
-          }
-        }
+        projectId
       }
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
     }
   }
 }
@@ -53478,6 +53494,9 @@ function getSdk(client, withWrapper = defaultWrapper) {
         VariableCollectionUpsert(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.VariableCollectionUpsertDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'VariableCollectionUpsert', 'mutation', variables);
         },
+        GetEnvironment(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.GetEnvironmentDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetEnvironment', 'query', variables);
+        },
         GetEnvironments(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.GetEnvironmentsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetEnvironments', 'query', variables);
         },
@@ -53486,6 +53505,57 @@ function getSdk(client, withWrapper = defaultWrapper) {
         }
     };
 }
+
+
+/***/ }),
+
+/***/ 6729:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findPreviewEnvironment = exports.resolveSourceEnvironment = void 0;
+const resolveSourceEnvironment = (environments, { projectId, environmentId, environmentName }) => {
+    if (!environmentId && !environmentName) {
+        throw new Error('Either environment_id or environment_name must be provided');
+    }
+    if (environmentId) {
+        const environment = environments.find(({ id }) => id === environmentId);
+        if (!environment || environment.projectId !== projectId) {
+            throw new Error(`Environment not found in project: ${environmentId}`);
+        }
+        return environment;
+    }
+    const matchingEnvironments = environments.filter(({ name, projectId: environmentProjectId }) => name === environmentName && environmentProjectId === projectId);
+    if (matchingEnvironments.length === 0) {
+        throw new Error(`Environment not found: ${environmentName}`);
+    }
+    if (matchingEnvironments.length > 1) {
+        throw new Error(`Multiple environments found: ${environmentName}`);
+    }
+    return matchingEnvironments[0];
+};
+exports.resolveSourceEnvironment = resolveSourceEnvironment;
+const findPreviewEnvironment = (environments, previewEnvironmentName, sourceEnvironment) => {
+    if (!previewEnvironmentName) {
+        throw new Error('preview_environment_name must be provided');
+    }
+    if (previewEnvironmentName === sourceEnvironment.name) {
+        throw new Error('preview_environment_name must differ from the source environment');
+    }
+    const matchingEnvironments = environments.filter(({ name, projectId }) => name === previewEnvironmentName &&
+        projectId === sourceEnvironment.projectId);
+    if (matchingEnvironments.length > 1) {
+        throw new Error(`Multiple environments found: ${previewEnvironmentName}`);
+    }
+    const previewEnvironment = matchingEnvironments[0];
+    if (previewEnvironment?.id === sourceEnvironment.id) {
+        throw new Error('preview_environment_name must not target the source environment');
+    }
+    return previewEnvironment;
+};
+exports.findPreviewEnvironment = findPreviewEnvironment;
 
 
 /***/ }),
@@ -53796,6 +53866,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.cleanup = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const config_1 = __nccwpck_require__(6373);
+const environment_selection_1 = __nccwpck_require__(6729);
 const delete_environment_1 = __nccwpck_require__(1585);
 const get_environments_1 = __nccwpck_require__(9918);
 /**
@@ -53804,17 +53875,20 @@ const get_environments_1 = __nccwpck_require__(9918);
  */
 const cleanup = async () => {
     try {
-        const { environments } = await (0, get_environments_1.getEnvironments)({ projectId: config_1.PROJECT_ID });
-        const selectedEnvironments = environments.edges.filter(edge => edge.node.name === config_1.PREVIEW_ENVIRONMENT_NAME);
-        if (selectedEnvironments.length >= 1) {
-            const environmentId = selectedEnvironments[0].node.id;
-            core.info(`Deleting environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${environmentId})`);
-            await (0, delete_environment_1.deleteEnvironment)({ id: environmentId });
-            core.info(`Environment ${config_1.PREVIEW_ENVIRONMENT_NAME} deleted successfully.`);
-        }
-        else {
+        const environments = await (0, get_environments_1.getAllEnvironments)({ projectId: config_1.PROJECT_ID });
+        const sourceEnvironment = (0, environment_selection_1.resolveSourceEnvironment)(environments, {
+            projectId: config_1.PROJECT_ID,
+            environmentId: config_1.PROJECT_ENVIRONMENT_ID || undefined,
+            environmentName: config_1.PROJECT_ENVIRONMENT_NAME || undefined
+        });
+        const selectedEnvironment = (0, environment_selection_1.findPreviewEnvironment)(environments, config_1.PREVIEW_ENVIRONMENT_NAME, sourceEnvironment);
+        if (!selectedEnvironment) {
             core.info(`No environment found with the name: ${config_1.PREVIEW_ENVIRONMENT_NAME}`);
+            return;
         }
+        core.info(`Deleting environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
+        await (0, delete_environment_1.deleteEnvironment)({ id: selectedEnvironment.id });
+        core.info(`Environment ${config_1.PREVIEW_ENVIRONMENT_NAME} deleted successfully.`);
     }
     catch (error) {
         core.setFailed(`Cleanup failed: ${error.message}`);
@@ -53857,67 +53931,65 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deploy = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const config_1 = __nccwpck_require__(6373);
+const environment_selection_1 = __nccwpck_require__(6729);
 const redeploy_all_services_1 = __nccwpck_require__(995);
 const set_service_domain_output_1 = __nccwpck_require__(7412);
 const update_all_deployment_triggers_1 = __nccwpck_require__(4250);
 const update_environment_variables_for_services_1 = __nccwpck_require__(1219);
 const create_environment_1 = __nccwpck_require__(7127);
 const delete_environment_1 = __nccwpck_require__(1585);
+const get_environment_1 = __nccwpck_require__(8823);
 const get_environments_1 = __nccwpck_require__(9918);
 const deploy = async () => {
     try {
         const ignoredServices = config_1.IGNORE_SERVICE_REDEPLOY
             ? JSON.parse(config_1.IGNORE_SERVICE_REDEPLOY)
             : [];
-        const { environments } = await (0, get_environments_1.getEnvironments)({ projectId: config_1.PROJECT_ID });
-        const selectedEnvironments = environments.edges.filter(edge => edge.node.name === config_1.PREVIEW_ENVIRONMENT_NAME);
-        // if the environment exists, delete it
-        if (selectedEnvironments.length >= 1) {
-            const environmentId = selectedEnvironments[0].node.id;
-            core.info(`Environment found: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
+        const environments = await (0, get_environments_1.getAllEnvironments)({ projectId: config_1.PROJECT_ID });
+        const sourceEnvironment = (0, environment_selection_1.resolveSourceEnvironment)(environments, {
+            projectId: config_1.PROJECT_ID,
+            environmentId: config_1.PROJECT_ENVIRONMENT_ID || undefined,
+            environmentName: config_1.PROJECT_ENVIRONMENT_NAME || undefined
+        });
+        const selectedEnvironment = (0, environment_selection_1.findPreviewEnvironment)(environments, config_1.PREVIEW_ENVIRONMENT_NAME, sourceEnvironment);
+        if (selectedEnvironment) {
+            core.info(`Environment found: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
             if (config_1.REUSE_PREVIEW_ENVIRONMENT === 'true') {
-                core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`);
-                const { serviceInstances } = selectedEnvironments[0].node;
+                core.info(`Reusing environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
+                const existingEnvironment = await (0, get_environment_1.getEnvironment)({
+                    id: selectedEnvironment.id,
+                    projectId: config_1.PROJECT_ID
+                });
                 (0, set_service_domain_output_1.setServiceDomainOutput)({
-                    serviceInstances,
+                    serviceInstances: existingEnvironment.serviceInstances,
                     ignoredServices,
                     apiServiceName: config_1.API_SERVICE_NAME
                 });
                 return;
             }
-            else {
-                core.info(`Deleting environment: ${config_1.PROJECT_ENVIRONMENT_NAME} (id: ${environmentId})`);
-                await (0, delete_environment_1.deleteEnvironment)({ id: environmentId });
-            }
-        }
-        let projectEnvironmentId;
-        // If there is no environment ID provided, get the environment ID from the project environments list by name
-        if (!config_1.PROJECT_ENVIRONMENT_ID) {
-            projectEnvironmentId = environments.edges.find(edge => edge.node.name === config_1.PROJECT_ENVIRONMENT_NAME)?.node.id;
-        }
-        if (!projectEnvironmentId) {
-            throw new Error(`Environment not found: ${config_1.PROJECT_ENVIRONMENT_NAME}`);
+            core.info(`Deleting environment: ${config_1.PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`);
+            await (0, delete_environment_1.deleteEnvironment)({ id: selectedEnvironment.id });
         }
         const createdEnvironment = await (0, create_environment_1.createEnvironment)({
             input: {
                 name: config_1.PREVIEW_ENVIRONMENT_NAME,
                 projectId: config_1.PROJECT_ID,
-                sourceEnvironmentId: projectEnvironmentId
+                sourceEnvironmentId: sourceEnvironment.id
             }
         });
+        const environmentId = createdEnvironment.environmentCreate.id;
+        const environment = await (0, get_environment_1.getEnvironment)({
+            id: environmentId,
+            projectId: config_1.PROJECT_ID
+        });
         console.log('Created environment:');
-        console.dir(createdEnvironment.environmentCreate, { depth: null });
-        const { id: environmentId, serviceInstances, deploymentTriggers } = createdEnvironment.environmentCreate;
-        const deploymentTriggerIds = [];
-        for (const deploymentTrigger of deploymentTriggers.edges) {
-            const { id: deploymentTriggerId } = deploymentTrigger.node;
-            deploymentTriggerIds.push(deploymentTriggerId);
-        }
+        console.dir({ id: environment.id, name: environment.name }, { depth: null });
+        const deploymentTriggerIds = environment.deploymentTriggers.edges.map(({ node }) => node.id);
         // Update the environment variables for the services
         await (0, update_environment_variables_for_services_1.updateEnvironmentVariablesForServices)({
-            environmentId,
+            environmentId: environment.id,
             projectId: config_1.PROJECT_ID,
-            serviceInstances,
+            serviceInstances: environment.serviceInstances,
             environmentVariables: config_1.ENVIRONMENT_VARIABLES
         });
         console.log('Waiting 15 seconds for deployments to initialize and become available...');
@@ -53927,12 +53999,12 @@ const deploy = async () => {
             branchName: config_1.BRANCH_NAME
         });
         const servicesNeedRedeploy = await (0, set_service_domain_output_1.setServiceDomainOutput)({
-            serviceInstances,
+            serviceInstances: environment.serviceInstances,
             ignoredServices,
             apiServiceName: config_1.API_SERVICE_NAME
         });
         await (0, redeploy_all_services_1.redeployAllServices)({
-            environmentId,
+            environmentId: environment.id,
             serviceIds: servicesNeedRedeploy
         });
     }
@@ -54128,6 +54200,9 @@ const client_1 = __nccwpck_require__(7202);
 const deleteEnvironment = async ({ id }) => {
     try {
         const result = await client_1.sdk.DeleteEnvironment({ id });
+        if (!result.environmentDelete) {
+            throw new Error(`Environment was not deleted (id: ${id})`);
+        }
         return result;
     }
     catch (error) {
@@ -54136,6 +54211,60 @@ const deleteEnvironment = async ({ id }) => {
     }
 };
 exports.deleteEnvironment = deleteEnvironment;
+
+
+/***/ }),
+
+/***/ 8823:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getEnvironment = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const client_1 = __nccwpck_require__(7202);
+const getEnvironment = async (variables) => {
+    try {
+        const result = await client_1.sdk.GetEnvironment(variables);
+        if (!result.environment) {
+            throw new Error(`Environment not found: ${variables.id}`);
+        }
+        if (variables.projectId &&
+            result.environment.projectId !== variables.projectId) {
+            throw new Error(`Environment not found in project: ${variables.id}`);
+        }
+        return result.environment;
+    }
+    catch (error) {
+        core.setFailed(`Failed to get environment: ${error.message}`);
+        throw error;
+    }
+};
+exports.getEnvironment = getEnvironment;
 
 
 /***/ }),
@@ -54169,12 +54298,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getEnvironments = void 0;
+exports.getAllEnvironments = exports.getEnvironments = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_1 = __nccwpck_require__(7202);
-const getEnvironments = async ({ projectId }) => {
+const ENVIRONMENTS_PAGE_SIZE = 100;
+const getEnvironments = async (variables) => {
     try {
-        const result = await client_1.sdk.GetEnvironments({ projectId });
+        const result = await client_1.sdk.GetEnvironments(variables);
         return result;
     }
     catch (error) {
@@ -54183,6 +54313,31 @@ const getEnvironments = async ({ projectId }) => {
     }
 };
 exports.getEnvironments = getEnvironments;
+const getAllEnvironments = async ({ projectId }) => {
+    const environments = [];
+    let after;
+    let hasNextPage = true;
+    while (hasNextPage) {
+        const result = await (0, exports.getEnvironments)({
+            projectId,
+            first: ENVIRONMENTS_PAGE_SIZE,
+            after
+        });
+        const connection = result.environments;
+        environments.push(...connection.edges.map(edge => edge.node));
+        hasNextPage = connection.pageInfo.hasNextPage;
+        if (!hasNextPage) {
+            return environments;
+        }
+        const nextCursor = connection.pageInfo.endCursor;
+        if (!nextCursor || nextCursor === after) {
+            throw new Error('Failed to paginate environments: Railway returned no next cursor');
+        }
+        after = nextCursor;
+    }
+    return environments;
+};
+exports.getAllEnvironments = getAllEnvironments;
 
 
 /***/ }),

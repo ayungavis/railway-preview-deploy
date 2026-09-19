@@ -10,93 +10,88 @@ import {
   PROJECT_ID,
   REUSE_PREVIEW_ENVIRONMENT
 } from '../config'
+import {
+  findPreviewEnvironment,
+  resolveSourceEnvironment
+} from '../helpers/environment-selection'
 import { redeployAllServices } from '../helpers/redeploy-all-services'
 import { setServiceDomainOutput } from '../helpers/set-service-domain-output'
 import { updateAllDeploymentTriggers } from '../helpers/update-all-deployment-triggers'
 import { updateEnvironmentVariablesForServices } from '../helpers/update-environment-variables-for-services'
 import { createEnvironment } from '../services/environments/create-environment'
 import { deleteEnvironment } from '../services/environments/delete-environment'
-import { getEnvironments } from '../services/environments/get-environments'
+import { getEnvironment } from '../services/environments/get-environment'
+import { getAllEnvironments } from '../services/environments/get-environments'
 
 export const deploy = async (): Promise<void> => {
   try {
     const ignoredServices = IGNORE_SERVICE_REDEPLOY
       ? JSON.parse(IGNORE_SERVICE_REDEPLOY)
       : []
-
-    const { environments } = await getEnvironments({ projectId: PROJECT_ID })
-
-    const selectedEnvironments = environments.edges.filter(
-      edge => edge.node.name === PREVIEW_ENVIRONMENT_NAME
+    const environments = await getAllEnvironments({ projectId: PROJECT_ID })
+    const sourceEnvironment = resolveSourceEnvironment(environments, {
+      projectId: PROJECT_ID,
+      environmentId: PROJECT_ENVIRONMENT_ID || undefined,
+      environmentName: PROJECT_ENVIRONMENT_NAME || undefined
+    })
+    const selectedEnvironment = findPreviewEnvironment(
+      environments,
+      PREVIEW_ENVIRONMENT_NAME,
+      sourceEnvironment
     )
 
-    // if the environment exists, delete it
-    if (selectedEnvironments.length >= 1) {
-      const environmentId = selectedEnvironments[0].node.id
+    if (selectedEnvironment) {
       core.info(
-        `Environment found: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`
+        `Environment found: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`
       )
 
       if (REUSE_PREVIEW_ENVIRONMENT === 'true') {
         core.info(
-          `Reusing environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironments[0].node.id})`
+          `Reusing environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`
         )
-        const { serviceInstances } = selectedEnvironments[0].node
+        const existingEnvironment = await getEnvironment({
+          id: selectedEnvironment.id,
+          projectId: PROJECT_ID
+        })
 
         setServiceDomainOutput({
-          serviceInstances,
+          serviceInstances: existingEnvironment.serviceInstances,
           ignoredServices,
           apiServiceName: API_SERVICE_NAME
         })
         return
-      } else {
-        core.info(
-          `Deleting environment: ${PROJECT_ENVIRONMENT_NAME} (id: ${environmentId})`
-        )
-        await deleteEnvironment({ id: environmentId })
       }
-    }
 
-    let projectEnvironmentId: string | undefined
-
-    // If there is no environment ID provided, get the environment ID from the project environments list by name
-    if (!PROJECT_ENVIRONMENT_ID) {
-      projectEnvironmentId = environments.edges.find(
-        edge => edge.node.name === PROJECT_ENVIRONMENT_NAME
-      )?.node.id
-    }
-
-    if (!projectEnvironmentId) {
-      throw new Error(`Environment not found: ${PROJECT_ENVIRONMENT_NAME}`)
+      core.info(
+        `Deleting environment: ${PREVIEW_ENVIRONMENT_NAME} (id: ${selectedEnvironment.id})`
+      )
+      await deleteEnvironment({ id: selectedEnvironment.id })
     }
 
     const createdEnvironment = await createEnvironment({
       input: {
         name: PREVIEW_ENVIRONMENT_NAME,
         projectId: PROJECT_ID,
-        sourceEnvironmentId: projectEnvironmentId
+        sourceEnvironmentId: sourceEnvironment.id
       }
     })
-    console.log('Created environment:')
-    console.dir(createdEnvironment.environmentCreate, { depth: null })
-
-    const {
+    const environmentId = createdEnvironment.environmentCreate.id
+    const environment = await getEnvironment({
       id: environmentId,
-      serviceInstances,
-      deploymentTriggers
-    } = createdEnvironment.environmentCreate
+      projectId: PROJECT_ID
+    })
+    console.log('Created environment:')
+    console.dir({ id: environment.id, name: environment.name }, { depth: null })
 
-    const deploymentTriggerIds: string[] = []
-    for (const deploymentTrigger of deploymentTriggers.edges) {
-      const { id: deploymentTriggerId } = deploymentTrigger.node
-      deploymentTriggerIds.push(deploymentTriggerId)
-    }
+    const deploymentTriggerIds = environment.deploymentTriggers.edges.map(
+      ({ node }) => node.id
+    )
 
     // Update the environment variables for the services
     await updateEnvironmentVariablesForServices({
-      environmentId,
+      environmentId: environment.id,
       projectId: PROJECT_ID,
-      serviceInstances,
+      serviceInstances: environment.serviceInstances,
       environmentVariables: ENVIRONMENT_VARIABLES
     })
 
@@ -111,13 +106,13 @@ export const deploy = async (): Promise<void> => {
     })
 
     const servicesNeedRedeploy = await setServiceDomainOutput({
-      serviceInstances,
+      serviceInstances: environment.serviceInstances,
       ignoredServices,
       apiServiceName: API_SERVICE_NAME
     })
 
     await redeployAllServices({
-      environmentId,
+      environmentId: environment.id,
       serviceIds: servicesNeedRedeploy
     })
   } catch (error) {
