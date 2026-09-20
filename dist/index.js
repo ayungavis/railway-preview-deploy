@@ -53681,6 +53681,12 @@ const getServiceDeploymentTargets = async ({ environmentId, serviceInstances, ig
         const { serviceId } = serviceInstance.node;
         const { service } = await (0, get_service_1.getService)({ id: serviceId });
         const { name } = service;
+        if (apiServiceName && name === apiServiceName) {
+            apiServiceId = serviceId;
+        }
+        if (!fallbackApiServiceId && ['app', 'backend', 'web'].includes(name)) {
+            fallbackApiServiceId = serviceId;
+        }
         if (ignoredServices.includes(name)) {
             continue;
         }
@@ -53697,12 +53703,6 @@ const getServiceDeploymentTargets = async ({ environmentId, serviceInstances, ig
         }
         sourceKind = serviceSourceKind;
         serviceIds.push(serviceId);
-        if (apiServiceName && name === apiServiceName) {
-            apiServiceId = serviceId;
-        }
-        if (!fallbackApiServiceId && ['app', 'backend', 'web'].includes(name)) {
-            fallbackApiServiceId = serviceId;
-        }
     }
     if (!sourceKind) {
         throw new Error('No services are available for deployment');
@@ -54145,6 +54145,11 @@ const validateInputs = () => {
     }
     if (config_1.DEPLOYMENT_MODE === 'commit' && !config_1.COMMIT_SHA) {
         throw new Error('commit_sha is required for commit deployment');
+    }
+    if (config_1.DEPLOYMENT_MODE === 'commit' &&
+        config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+        !config_1.BRANCH_NAME) {
+        throw new Error('branch_name is required when update_deployment_triggers is enabled');
     }
 };
 const validateImageRef = () => {
