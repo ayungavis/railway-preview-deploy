@@ -11,12 +11,17 @@ export const serviceInstanceDeployV2 = async ({
   serviceId
 }: ServiceInstanceDeployV2MutationVariables): Promise<string> => {
   try {
+    const variables: ServiceInstanceDeployV2MutationVariables = {
+      environmentId,
+      serviceId
+    }
+
+    if (commitSha) {
+      variables.commitSha = commitSha
+    }
+
     const result: ServiceInstanceDeployV2Mutation =
-      await sdk.ServiceInstanceDeployV2({
-        commitSha,
-        environmentId,
-        serviceId
-      })
+      await sdk.ServiceInstanceDeployV2(variables)
     const deploymentId = result.serviceInstanceDeployV2
 
     if (!deploymentId) {

@@ -49,10 +49,19 @@ inputs:
     description:
       'List of service names to exclude from the explicit preview deployment.'
     required: false
+  deployment_mode:
+    description:
+      'Deployment source: commit, image, or auto. Defaults to commit.'
+    required: false
+    default: 'commit'
+  image_ref:
+    description:
+      'Full Docker image reference, including registry, name, and tag.'
+    required: false
   commit_sha:
     description:
-      'The commit SHA to deploy for the preview environment. Required when
-      deploying.'
+      'The commit SHA to deploy for the preview environment. Required in commit
+      mode.'
     required: false
   branch_name:
     description:

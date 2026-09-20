@@ -1,0 +1,109 @@
+name: GHCR Image Integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Run this workflow only from the trusted default branch and protected
+# railway-integration environment.
+env:
+  PREVIEW_ENVIRONMENT_NAME: ghcr-it-${{ github.run_id }}
+
+jobs:
+  build-image:
+    name: Build and push GHCR image
+    if:
+      ${{ github.ref == format('refs/heads/{0}',
+      github.event.repository.default_branch) }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_ref: ${{ steps.image.outputs.image_ref }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push integration image
+        id: image
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          image_ref="ghcr.io/${GITHUB_REPOSITORY,,}:integration-${GITHUB_RUN_ID}-${GITHUB_SHA}"
+          docker buildx build \
+            --file - \
+            --tag "$image_ref" \
+            --push \
+            . <<'DOCKERFILE'
+          FROM nginx:alpine
+          RUN printf '%s\n' 'railway-preview-ghcr-integration' > /usr/share/nginx/html/index.html
+          DOCKERFILE
+          printf 'image_ref=%s\n' "$image_ref" >> "$GITHUB_OUTPUT"
+
+  deploy-image:
+    name: Deploy GHCR image to Railway
+    if:
+      ${{ github.ref == format('refs/heads/{0}',
+      github.event.repository.default_branch) }}
+    needs: build-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: railway-integration
+    steps:
+      - name: Checkout trusted commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Deploy image preview
+        id: deploy
+        uses: ./
+        with:
+          railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
+          project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environment_id: ${{ secrets.RAILWAY_TEST_ENVIRONMENT_ID }}
+          preview_environment_name: ${{ env.PREVIEW_ENVIRONMENT_NAME }}
+          api_service_name: ${{ vars.RAILWAY_TEST_API_SERVICE_NAME }}
+          deployment_mode: image
+          image_ref: ${{ needs.build-image.outputs.image_ref }}
+
+      - name: Verify preview domain
+        env:
+          SERVICE_DOMAIN: ${{ steps.deploy.outputs.service_domain }}
+        run: test -n "$SERVICE_DOMAIN"
+
+  cleanup:
+    name: Clean up Railway image preview
+    if:
+      ${{ always() && needs.deploy-image.result != 'skipped' && github.ref ==
+      format('refs/heads/{0}', github.event.repository.default_branch) }}
+    needs: [build-image, deploy-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: railway-integration
+    steps:
+      - name: Checkout trusted commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Delete image preview environment
+        uses: ./
+        with:
+          railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
+          project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
+          environment_id: ${{ secrets.RAILWAY_TEST_ENVIRONMENT_ID }}
+          preview_environment_name: ${{ env.PREVIEW_ENVIRONMENT_NAME }}
+          cleanup: 'true'

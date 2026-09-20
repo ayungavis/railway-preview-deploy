@@ -1,0 +1,11 @@
+query GetServiceInstance($environmentId: String!, $serviceId: String!) {
+  serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
+    id
+    environmentId
+    serviceId
+    source {
+      image
+      repo
+    }
+  }
+}

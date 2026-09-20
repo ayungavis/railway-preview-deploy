@@ -127,6 +127,7 @@ export type Mutation = {
   environmentDelete: Scalars['Boolean']['output'];
   serviceInstanceDeployV2: Scalars['String']['output'];
   serviceInstanceRedeploy: Scalars['Boolean']['output'];
+  serviceInstanceUpdate: Scalars['Boolean']['output'];
   variableCollectionUpsert: Scalars['Boolean']['output'];
 };
 
@@ -160,6 +161,13 @@ export type MutationServiceInstanceRedeployArgs = {
 };
 
 
+export type MutationServiceInstanceUpdateArgs = {
+  environmentId?: InputMaybe<Scalars['String']['input']>;
+  input: ServiceInstanceUpdateInput;
+  serviceId: Scalars['String']['input'];
+};
+
+
 export type MutationVariableCollectionUpsertArgs = {
   input?: InputMaybe<VariableCollectionUpsertInput>;
 };
@@ -179,6 +187,7 @@ export type Query = {
   environment?: Maybe<Environment>;
   environments: QueryEnvironmentConnection;
   service: Service;
+  serviceInstance?: Maybe<ServiceInstance>;
 };
 
 
@@ -214,6 +223,12 @@ export type QueryServiceArgs = {
   id: Scalars['String']['input'];
 };
 
+
+export type QueryServiceInstanceArgs = {
+  environmentId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
+};
+
 export type QueryEnvironmentConnection = {
   __typename?: 'QueryEnvironmentConnection';
   edges: Array<QueryEnvironmentConnectionEdge>;
@@ -247,9 +262,26 @@ export type ServiceDomain = {
 export type ServiceInstance = {
   __typename?: 'ServiceInstance';
   domains: AllDomains;
+  environmentId: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   serviceId: Scalars['String']['output'];
+  source?: Maybe<ServiceSource>;
   startCommand: Scalars['String']['output'];
+};
+
+export type ServiceInstanceUpdateInput = {
+  source?: InputMaybe<ServiceSourceInput>;
+};
+
+export type ServiceSource = {
+  __typename?: 'ServiceSource';
+  image?: Maybe<Scalars['String']['output']>;
+  repo?: Maybe<Scalars['String']['output']>;
+};
+
+export type ServiceSourceInput = {
+  image?: InputMaybe<Scalars['String']['input']>;
+  repo?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type VariableCollectionUpsertInput = {
@@ -283,7 +315,7 @@ export type DeploymentTriggerUpdateMutationVariables = Exact<{
 export type DeploymentTriggerUpdateMutation = { __typename?: 'Mutation', deploymentTriggerUpdate: { __typename?: 'DeploymentTrigger', id: string } };
 
 export type ServiceInstanceDeployV2MutationVariables = Exact<{
-  commitSha: Scalars['String']['input'];
+  commitSha?: InputMaybe<Scalars['String']['input']>;
   environmentId: Scalars['String']['input'];
   serviceId: Scalars['String']['input'];
 }>;
@@ -298,6 +330,15 @@ export type ServiceInstanceRedeployMutationVariables = Exact<{
 
 
 export type ServiceInstanceRedeployMutation = { __typename?: 'Mutation', serviceInstanceRedeploy: boolean };
+
+export type ServiceInstanceUpdateMutationVariables = Exact<{
+  environmentId?: InputMaybe<Scalars['String']['input']>;
+  input: ServiceInstanceUpdateInput;
+  serviceId: Scalars['String']['input'];
+}>;
+
+
+export type ServiceInstanceUpdateMutation = { __typename?: 'Mutation', serviceInstanceUpdate: boolean };
 
 export type VariableCollectionUpsertMutationVariables = Exact<{
   input: VariableCollectionUpsertInput;
@@ -338,6 +379,14 @@ export type GetEnvironmentsQueryVariables = Exact<{
 
 
 export type GetEnvironmentsQuery = { __typename?: 'Query', environments: { __typename?: 'QueryEnvironmentConnection', edges: Array<{ __typename?: 'QueryEnvironmentConnectionEdge', node: { __typename?: 'Environment', id: string, name: string, projectId: string } }>, pageInfo: { __typename?: 'PageInfo', endCursor?: string | null, hasNextPage: boolean } } };
+
+export type GetServiceInstanceQueryVariables = Exact<{
+  environmentId: Scalars['String']['input'];
+  serviceId: Scalars['String']['input'];
+}>;
+
+
+export type GetServiceInstanceQuery = { __typename?: 'Query', serviceInstance?: { __typename?: 'ServiceInstance', id: string, environmentId: string, serviceId: string, source?: { __typename?: 'ServiceSource', image?: string | null, repo?: string | null } | null } | null };
 
 export type GetServiceQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -393,7 +442,7 @@ export const DeploymentTriggerUpdateDocument = gql`
 }
     `;
 export const ServiceInstanceDeployV2Document = gql`
-    mutation ServiceInstanceDeployV2($commitSha: String!, $environmentId: String!, $serviceId: String!) {
+    mutation ServiceInstanceDeployV2($commitSha: String, $environmentId: String!, $serviceId: String!) {
   serviceInstanceDeployV2(
     commitSha: $commitSha
     environmentId: $environmentId
@@ -404,6 +453,15 @@ export const ServiceInstanceDeployV2Document = gql`
 export const ServiceInstanceRedeployDocument = gql`
     mutation ServiceInstanceRedeploy($environmentId: String!, $serviceId: String!) {
   serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
+}
+    `;
+export const ServiceInstanceUpdateDocument = gql`
+    mutation ServiceInstanceUpdate($environmentId: String, $input: ServiceInstanceUpdateInput!, $serviceId: String!) {
+  serviceInstanceUpdate(
+    environmentId: $environmentId
+    input: $input
+    serviceId: $serviceId
+  )
 }
     `;
 export const VariableCollectionUpsertDocument = gql`
@@ -493,6 +551,19 @@ export const GetEnvironmentsDocument = gql`
   }
 }
     `;
+export const GetServiceInstanceDocument = gql`
+    query GetServiceInstance($environmentId: String!, $serviceId: String!) {
+  serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
+    id
+    environmentId
+    serviceId
+    source {
+      image
+      repo
+    }
+  }
+}
+    `;
 export const GetServiceDocument = gql`
     query GetService($id: String!) {
   service(id: $id) {
@@ -523,6 +594,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     ServiceInstanceRedeploy(variables: ServiceInstanceRedeployMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ServiceInstanceRedeployMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<ServiceInstanceRedeployMutation>(ServiceInstanceRedeployDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ServiceInstanceRedeploy', 'mutation', variables);
     },
+    ServiceInstanceUpdate(variables: ServiceInstanceUpdateMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ServiceInstanceUpdateMutation> {
+      return withWrapper((wrappedRequestHeaders) => client.request<ServiceInstanceUpdateMutation>(ServiceInstanceUpdateDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ServiceInstanceUpdate', 'mutation', variables);
+    },
     VariableCollectionUpsert(variables: VariableCollectionUpsertMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<VariableCollectionUpsertMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<VariableCollectionUpsertMutation>(VariableCollectionUpsertDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'VariableCollectionUpsert', 'mutation', variables);
     },
@@ -537,6 +611,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     GetEnvironments(variables: GetEnvironmentsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetEnvironmentsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetEnvironmentsQuery>(GetEnvironmentsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetEnvironments', 'query', variables);
+    },
+    GetServiceInstance(variables: GetServiceInstanceQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetServiceInstanceQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetServiceInstanceQuery>(GetServiceInstanceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetServiceInstance', 'query', variables);
     },
     GetService(variables: GetServiceQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetServiceQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetServiceQuery>(GetServiceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GetService', 'query', variables);

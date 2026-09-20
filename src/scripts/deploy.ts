@@ -3,6 +3,8 @@ import {
   API_SERVICE_NAME,
   BRANCH_NAME,
   COMMIT_SHA,
+  DEPLOYMENT_MODE,
+  IMAGE_REF,
   ENVIRONMENT_VARIABLES,
   IGNORE_SERVICE_REDEPLOY,
   PREVIEW_ENVIRONMENT_NAME,
@@ -17,6 +19,7 @@ import {
   resolveSourceEnvironment
 } from '../helpers/environment-selection'
 import { getServiceDeploymentTargets } from '../helpers/get-service-deployment-targets'
+import { resolveDeploymentMode } from '../helpers/resolve-deployment-mode'
 import { setServiceDomainOutput } from '../helpers/set-service-domain-output'
 import { updateAllDeploymentTriggers } from '../helpers/update-all-deployment-triggers'
 import { updateEnvironmentVariablesForServices } from '../helpers/update-environment-variables-for-services'
@@ -26,22 +29,37 @@ import { deleteEnvironment } from '../services/environments/delete-environment'
 import { getEnvironment } from '../services/environments/get-environment'
 import { getAllEnvironments } from '../services/environments/get-environments'
 import { serviceInstanceDeployV2 } from '../services/deployments/service-instance-deploy-v2'
+import { updateServiceInstanceSource } from '../services/service-instances/update-service-instance'
 
 const parseIgnoredServices = (): string[] =>
   IGNORE_SERVICE_REDEPLOY ? JSON.parse(IGNORE_SERVICE_REDEPLOY) : []
 
 const validateInputs = (): void => {
-  if (!COMMIT_SHA) {
-    throw new Error(
-      'commit_sha is required when deploying a preview environment'
-    )
+  if (!['commit', 'image', 'auto'].includes(DEPLOYMENT_MODE)) {
+    throw new Error(`Invalid deployment_mode: ${DEPLOYMENT_MODE}`)
   }
 
-  if (UPDATE_DEPLOYMENT_TRIGGERS === 'true' && !BRANCH_NAME) {
+  if (DEPLOYMENT_MODE === 'commit' && !COMMIT_SHA) {
+    throw new Error('commit_sha is required for commit deployment')
+  }
+
+  if (
+    DEPLOYMENT_MODE === 'commit' &&
+    UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+    !BRANCH_NAME
+  ) {
     throw new Error(
       'branch_name is required when update_deployment_triggers is enabled'
     )
   }
+}
+
+const validateImageRef = (): string => {
+  if (!IMAGE_REF) {
+    throw new Error('image_ref is required for image deployment')
+  }
+
+  return IMAGE_REF
 }
 
 export const deploy = async (): Promise<void> => {
@@ -91,6 +109,32 @@ export const deploy = async (): Promise<void> => {
       projectId: PROJECT_ID
     })
 
+    const { serviceIds, apiServiceId, sourceKind } =
+      await getServiceDeploymentTargets({
+        environmentId: environment.id,
+        serviceInstances: environment.serviceInstances,
+        ignoredServices,
+        apiServiceName: API_SERVICE_NAME
+      })
+
+    const resolvedMode = resolveDeploymentMode({
+      mode: DEPLOYMENT_MODE,
+      sourceKind,
+      commitSha: COMMIT_SHA || undefined,
+      imageRef: IMAGE_REF || undefined,
+      updateDeploymentTriggers: UPDATE_DEPLOYMENT_TRIGGERS
+    })
+
+    if (
+      resolvedMode === 'commit' &&
+      UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+      !BRANCH_NAME
+    ) {
+      throw new Error(
+        'branch_name is required when update_deployment_triggers is enabled'
+      )
+    }
+
     await updateEnvironmentVariablesForServices({
       environmentId: environment.id,
       projectId: PROJECT_ID,
@@ -98,7 +142,21 @@ export const deploy = async (): Promise<void> => {
       environmentVariables: ENVIRONMENT_VARIABLES
     })
 
-    if (UPDATE_DEPLOYMENT_TRIGGERS === 'true') {
+    if (resolvedMode === 'image') {
+      const imageRef = validateImageRef()
+      await Promise.all(
+        serviceIds.map(
+          async serviceId =>
+            await updateServiceInstanceSource({
+              environmentId: environment.id,
+              serviceId,
+              image: imageRef
+            })
+        )
+      )
+    }
+
+    if (resolvedMode === 'commit' && UPDATE_DEPLOYMENT_TRIGGERS === 'true') {
       await updateAllDeploymentTriggers({
         deploymentTriggerIds: environment.deploymentTriggers.edges.map(
           ({ node }) => node.id
@@ -106,12 +164,6 @@ export const deploy = async (): Promise<void> => {
         branchName: BRANCH_NAME
       })
     }
-
-    const { serviceIds, apiServiceId } = await getServiceDeploymentTargets({
-      serviceInstances: environment.serviceInstances,
-      ignoredServices,
-      apiServiceName: API_SERVICE_NAME
-    })
 
     if (serviceIds.length === 0) {
       throw new Error('No services are available for deployment')
@@ -121,7 +173,7 @@ export const deploy = async (): Promise<void> => {
       serviceIds.map(
         async serviceId =>
           await serviceInstanceDeployV2({
-            commitSha: COMMIT_SHA,
+            ...(resolvedMode === 'commit' && { commitSha: COMMIT_SHA }),
             environmentId: environment.id,
             serviceId
           })

@@ -8,15 +8,17 @@ jest.mock('@actions/core', () => ({
 jest.mock('../src/config', () => ({
   API_SERVICE_NAME: 'web',
   BRANCH_NAME: '',
-  COMMIT_SHA: '',
+  COMMIT_SHA: 'commit-sha',
+  DEPLOYMENT_MODE: 'commit',
+  IMAGE_REF: '',
+  UPDATE_DEPLOYMENT_TRIGGERS: 'true',
   ENVIRONMENT_VARIABLES: '{}',
   IGNORE_SERVICE_REDEPLOY: '',
   PREVIEW_ENVIRONMENT_NAME: 'pr-123',
   PROJECT_ENVIRONMENT_ID: 'source-id',
   PROJECT_ENVIRONMENT_NAME: 'production',
   PROJECT_ID: 'project-id',
-  REUSE_PREVIEW_ENVIRONMENT: 'true',
-  UPDATE_DEPLOYMENT_TRIGGERS: 'false'
+  REUSE_PREVIEW_ENVIRONMENT: 'true'
 }))
 
 jest.mock('../src/services/environments/get-environments', () => ({
@@ -36,7 +38,7 @@ describe('deploy input validation', () => {
     getAllEnvironmentsMock.mockResolvedValue([])
   })
 
-  it('does not query Railway when commit_sha is missing', async () => {
+  it('does not query Railway when branch_name is missing for commit triggers', async () => {
     await deploy()
 
     expect(getAllEnvironmentsMock).not.toHaveBeenCalled()
