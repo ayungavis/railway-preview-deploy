@@ -63,7 +63,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Railway Preview Deploy
-        uses: ayungavis/railway-preview-deploy@v1.1.0
+        uses: ayungavis/railway-preview-deploy@v2.0.0
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
@@ -161,7 +161,7 @@ jobs:
 
       - name: Deploy to Railway
         id: deploy
-        uses: ayungavis/railway-preview-deploy@v1.1.0
+        uses: ayungavis/railway-preview-deploy@v2.0.0
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
@@ -243,7 +243,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cleanup Railway Environment
-        uses: ayungavis/railway-preview-deploy@v1.1.0
+        uses: ayungavis/railway-preview-deploy@v2.0.0
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
           project_id: ${{ secrets.RAILWAY_PROJECT_ID }}
