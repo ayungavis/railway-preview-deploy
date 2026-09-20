@@ -35,6 +35,14 @@ export const getServiceDeploymentTargets = async ({
     const { service } = await getService({ id: serviceId })
     const { name } = service
 
+    if (apiServiceName && name === apiServiceName) {
+      apiServiceId = serviceId
+    }
+
+    if (!fallbackApiServiceId && ['app', 'backend', 'web'].includes(name)) {
+      fallbackApiServiceId = serviceId
+    }
+
     if (ignoredServices.includes(name)) {
       continue
     }
@@ -59,14 +67,6 @@ export const getServiceDeploymentTargets = async ({
 
     sourceKind = serviceSourceKind
     serviceIds.push(serviceId)
-
-    if (apiServiceName && name === apiServiceName) {
-      apiServiceId = serviceId
-    }
-
-    if (!fallbackApiServiceId && ['app', 'backend', 'web'].includes(name)) {
-      fallbackApiServiceId = serviceId
-    }
   }
 
   if (!sourceKind) {

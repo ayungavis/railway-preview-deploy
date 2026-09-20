@@ -42,6 +42,16 @@ const validateInputs = (): void => {
   if (DEPLOYMENT_MODE === 'commit' && !COMMIT_SHA) {
     throw new Error('commit_sha is required for commit deployment')
   }
+
+  if (
+    DEPLOYMENT_MODE === 'commit' &&
+    UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+    !BRANCH_NAME
+  ) {
+    throw new Error(
+      'branch_name is required when update_deployment_triggers is enabled'
+    )
+  }
 }
 
 const validateImageRef = (): string => {

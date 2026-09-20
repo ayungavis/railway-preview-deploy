@@ -178,7 +178,7 @@ jobs:
           echo "Preview deployed at ${{ steps.deploy.outputs.service_domain }}"
 
       - name: Post or update deployment comment
-        if: ${{ steps.test-action.outputs.service_domain != '' }}
+        if: ${{ steps.deploy.outputs.service_domain != '' }}
         uses: actions/github-script@v7
         with:
           script: |

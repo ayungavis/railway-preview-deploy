@@ -98,4 +98,24 @@ describe('getServiceDeploymentTargets', () => {
 
     expect(getServiceInstanceMock).toHaveBeenCalledTimes(1)
   })
+
+  it('keeps an ignored API service available for domain selection', async () => {
+    getServiceMock.mockImplementation(async ({ id }) =>
+      id === 'service-1' ? service('web') : service('worker')
+    )
+    getServiceInstanceMock.mockResolvedValueOnce(source(null, 'owner/worker'))
+
+    await expect(
+      getServiceDeploymentTargets({
+        environmentId: 'environment-id',
+        serviceInstances,
+        ignoredServices: ['web'],
+        apiServiceName: 'web'
+      })
+    ).resolves.toMatchObject({
+      serviceIds: ['service-2'],
+      apiServiceId: 'service-1',
+      sourceKind: 'repository'
+    })
+  })
 })
