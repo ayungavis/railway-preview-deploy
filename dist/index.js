@@ -53289,7 +53289,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.IS_CLEANUP = exports.REUSE_PREVIEW_ENVIRONMENT = exports.UPDATE_DEPLOYMENT_TRIGGERS = exports.BRANCH_NAME = exports.COMMIT_SHA = exports.IGNORE_SERVICE_REDEPLOY = exports.API_SERVICE_NAME = exports.ENVIRONMENT_VARIABLES = exports.PREVIEW_ENVIRONMENT_NAME = exports.PROJECT_ENVIRONMENT_ID = exports.PROJECT_ENVIRONMENT_NAME = exports.PROJECT_ID = exports.RAILWAY_ENDPOINT = void 0;
+exports.IS_CLEANUP = exports.REUSE_PREVIEW_ENVIRONMENT = exports.UPDATE_DEPLOYMENT_TRIGGERS = exports.BRANCH_NAME = exports.COMMIT_SHA = exports.IMAGE_REF = exports.DEPLOYMENT_MODE = exports.IGNORE_SERVICE_REDEPLOY = exports.API_SERVICE_NAME = exports.ENVIRONMENT_VARIABLES = exports.PREVIEW_ENVIRONMENT_NAME = exports.PROJECT_ENVIRONMENT_ID = exports.PROJECT_ENVIRONMENT_NAME = exports.PROJECT_ID = exports.RAILWAY_ENDPOINT = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 exports.RAILWAY_ENDPOINT = 'https://backboard.railway.app/graphql/v2';
 // Action inputs
@@ -53300,6 +53300,8 @@ exports.PREVIEW_ENVIRONMENT_NAME = core.getInput('preview_environment_name');
 exports.ENVIRONMENT_VARIABLES = core.getInput('environment_variables');
 exports.API_SERVICE_NAME = core.getInput('api_service_name');
 exports.IGNORE_SERVICE_REDEPLOY = core.getInput('ignore_service_redeploy');
+exports.DEPLOYMENT_MODE = core.getInput('deployment_mode') || 'commit';
+exports.IMAGE_REF = core.getInput('image_ref');
 exports.COMMIT_SHA = core.getInput('commit_sha');
 exports.BRANCH_NAME = core.getInput('branch_name');
 exports.UPDATE_DEPLOYMENT_TRIGGERS = core.getInput('update_deployment_triggers') || 'false';
@@ -53363,7 +53365,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetServiceDocument = exports.GetEnvironmentsDocument = exports.GetEnvironmentDocument = exports.GetDomainsDocument = exports.GetDeploymentDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceRedeployDocument = exports.ServiceInstanceDeployV2Document = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
+exports.GetServiceDocument = exports.GetServiceInstanceDocument = exports.GetEnvironmentsDocument = exports.GetEnvironmentDocument = exports.GetDomainsDocument = exports.GetDeploymentDocument = exports.VariableCollectionUpsertDocument = exports.ServiceInstanceUpdateDocument = exports.ServiceInstanceRedeployDocument = exports.ServiceInstanceDeployV2Document = exports.DeploymentTriggerUpdateDocument = exports.DeleteEnvironmentDocument = exports.CreateEnvironmentDocument = void 0;
 exports.getSdk = getSdk;
 const graphql_tag_1 = __importDefault(__nccwpck_require__(8435));
 exports.CreateEnvironmentDocument = (0, graphql_tag_1.default) `
@@ -53412,7 +53414,7 @@ exports.DeploymentTriggerUpdateDocument = (0, graphql_tag_1.default) `
 }
     `;
 exports.ServiceInstanceDeployV2Document = (0, graphql_tag_1.default) `
-    mutation ServiceInstanceDeployV2($commitSha: String!, $environmentId: String!, $serviceId: String!) {
+    mutation ServiceInstanceDeployV2($commitSha: String, $environmentId: String!, $serviceId: String!) {
   serviceInstanceDeployV2(
     commitSha: $commitSha
     environmentId: $environmentId
@@ -53423,6 +53425,15 @@ exports.ServiceInstanceDeployV2Document = (0, graphql_tag_1.default) `
 exports.ServiceInstanceRedeployDocument = (0, graphql_tag_1.default) `
     mutation ServiceInstanceRedeploy($environmentId: String!, $serviceId: String!) {
   serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
+}
+    `;
+exports.ServiceInstanceUpdateDocument = (0, graphql_tag_1.default) `
+    mutation ServiceInstanceUpdate($environmentId: String, $input: ServiceInstanceUpdateInput!, $serviceId: String!) {
+  serviceInstanceUpdate(
+    environmentId: $environmentId
+    input: $input
+    serviceId: $serviceId
+  )
 }
     `;
 exports.VariableCollectionUpsertDocument = (0, graphql_tag_1.default) `
@@ -53512,6 +53523,19 @@ exports.GetEnvironmentsDocument = (0, graphql_tag_1.default) `
   }
 }
     `;
+exports.GetServiceInstanceDocument = (0, graphql_tag_1.default) `
+    query GetServiceInstance($environmentId: String!, $serviceId: String!) {
+  serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
+    id
+    environmentId
+    serviceId
+    source {
+      image
+      repo
+    }
+  }
+}
+    `;
 exports.GetServiceDocument = (0, graphql_tag_1.default) `
     query GetService($id: String!) {
   service(id: $id) {
@@ -53537,6 +53561,9 @@ function getSdk(client, withWrapper = defaultWrapper) {
         ServiceInstanceRedeploy(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.ServiceInstanceRedeployDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'ServiceInstanceRedeploy', 'mutation', variables);
         },
+        ServiceInstanceUpdate(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.ServiceInstanceUpdateDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'ServiceInstanceUpdate', 'mutation', variables);
+        },
         VariableCollectionUpsert(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.VariableCollectionUpsertDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'VariableCollectionUpsert', 'mutation', variables);
         },
@@ -53552,11 +53579,34 @@ function getSdk(client, withWrapper = defaultWrapper) {
         GetEnvironments(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.GetEnvironmentsDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetEnvironments', 'query', variables);
         },
+        GetServiceInstance(variables, requestHeaders) {
+            return withWrapper((wrappedRequestHeaders) => client.request(exports.GetServiceInstanceDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetServiceInstance', 'query', variables);
+        },
         GetService(variables, requestHeaders) {
             return withWrapper((wrappedRequestHeaders) => client.request(exports.GetServiceDocument, variables, { ...requestHeaders, ...wrappedRequestHeaders }), 'GetService', 'query', variables);
         }
     };
 }
+
+
+/***/ }),
+
+/***/ 8249:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.classifyServiceSource = void 0;
+const classifyServiceSource = (source) => {
+    const hasImage = Boolean(source?.image);
+    const hasRepository = Boolean(source?.repo);
+    if (hasImage === hasRepository) {
+        return 'unknown';
+    }
+    return hasImage ? 'image' : 'repository';
+};
+exports.classifyServiceSource = classifyServiceSource;
 
 
 /***/ }),
@@ -53619,18 +53669,34 @@ exports.findPreviewEnvironment = findPreviewEnvironment;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getServiceDeploymentTargets = void 0;
+const classify_service_source_1 = __nccwpck_require__(8249);
 const get_service_1 = __nccwpck_require__(5304);
-const getServiceDeploymentTargets = async ({ serviceInstances, ignoredServices, apiServiceName }) => {
+const get_service_instance_1 = __nccwpck_require__(7580);
+const getServiceDeploymentTargets = async ({ environmentId, serviceInstances, ignoredServices, apiServiceName }) => {
     const serviceIds = [];
     let apiServiceId;
     let fallbackApiServiceId;
+    let sourceKind;
     for (const serviceInstance of serviceInstances.edges) {
         const { serviceId } = serviceInstance.node;
         const { service } = await (0, get_service_1.getService)({ id: serviceId });
         const { name } = service;
-        if (!ignoredServices.includes(name)) {
-            serviceIds.push(serviceId);
+        if (ignoredServices.includes(name)) {
+            continue;
         }
+        const serviceInstanceDetails = await (0, get_service_instance_1.getServiceInstance)({
+            environmentId,
+            serviceId
+        });
+        const serviceSourceKind = (0, classify_service_source_1.classifyServiceSource)(serviceInstanceDetails.source);
+        if (sourceKind && sourceKind !== serviceSourceKind) {
+            throw new Error('Mixed repository and Docker image services are not supported in one deployment');
+        }
+        if (serviceSourceKind === 'unknown') {
+            throw new Error(`Unknown deployment source for service: ${name}`);
+        }
+        sourceKind = serviceSourceKind;
+        serviceIds.push(serviceId);
         if (apiServiceName && name === apiServiceName) {
             apiServiceId = serviceId;
         }
@@ -53638,12 +53704,64 @@ const getServiceDeploymentTargets = async ({ serviceInstances, ignoredServices, 
             fallbackApiServiceId = serviceId;
         }
     }
+    if (!sourceKind) {
+        throw new Error('No services are available for deployment');
+    }
     return {
         serviceIds,
-        apiServiceId: apiServiceName ? apiServiceId : fallbackApiServiceId
+        apiServiceId: apiServiceName ? apiServiceId : fallbackApiServiceId,
+        sourceKind
     };
 };
 exports.getServiceDeploymentTargets = getServiceDeploymentTargets;
+
+
+/***/ }),
+
+/***/ 3346:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveDeploymentMode = void 0;
+const resolveDeploymentMode = ({ mode, sourceKind, commitSha, imageRef, updateDeploymentTriggers }) => {
+    if (!['commit', 'image', 'auto'].includes(mode)) {
+        throw new Error(`Invalid deployment_mode: ${mode}`);
+    }
+    if (mode === 'commit') {
+        if (!commitSha) {
+            throw new Error('commit_sha is required for repository deployment');
+        }
+        if (imageRef) {
+            throw new Error('image_ref cannot be used with deployment_mode commit');
+        }
+        if (sourceKind !== 'repository') {
+            throw new Error('deployment_mode commit requires a repository-backed service');
+        }
+        return 'commit';
+    }
+    if (mode === 'auto' && sourceKind === 'repository') {
+        if (!commitSha) {
+            throw new Error('commit_sha is required for repository deployment');
+        }
+        return 'commit';
+    }
+    if (sourceKind !== 'image') {
+        throw new Error('deployment_mode image requires an image-backed service');
+    }
+    if (!imageRef) {
+        throw new Error('image_ref is required for image deployment');
+    }
+    if (mode === 'image' && commitSha) {
+        throw new Error('commit_sha cannot be used for image deployment');
+    }
+    if (updateDeploymentTriggers === 'true') {
+        throw new Error('update_deployment_triggers cannot be enabled for image deployment');
+    }
+    return 'image';
+};
+exports.resolveDeploymentMode = resolveDeploymentMode;
 
 
 /***/ }),
@@ -54009,6 +54127,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const config_1 = __nccwpck_require__(6373);
 const environment_selection_1 = __nccwpck_require__(6729);
 const get_service_deployment_targets_1 = __nccwpck_require__(3161);
+const resolve_deployment_mode_1 = __nccwpck_require__(3346);
 const set_service_domain_output_1 = __nccwpck_require__(7412);
 const update_all_deployment_triggers_1 = __nccwpck_require__(4250);
 const update_environment_variables_for_services_1 = __nccwpck_require__(1219);
@@ -54018,14 +54137,21 @@ const delete_environment_1 = __nccwpck_require__(1585);
 const get_environment_1 = __nccwpck_require__(8823);
 const get_environments_1 = __nccwpck_require__(9918);
 const service_instance_deploy_v2_1 = __nccwpck_require__(4630);
+const update_service_instance_1 = __nccwpck_require__(2561);
 const parseIgnoredServices = () => config_1.IGNORE_SERVICE_REDEPLOY ? JSON.parse(config_1.IGNORE_SERVICE_REDEPLOY) : [];
 const validateInputs = () => {
-    if (!config_1.COMMIT_SHA) {
-        throw new Error('commit_sha is required when deploying a preview environment');
+    if (!['commit', 'image', 'auto'].includes(config_1.DEPLOYMENT_MODE)) {
+        throw new Error(`Invalid deployment_mode: ${config_1.DEPLOYMENT_MODE}`);
     }
-    if (config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true' && !config_1.BRANCH_NAME) {
-        throw new Error('branch_name is required when update_deployment_triggers is enabled');
+    if (config_1.DEPLOYMENT_MODE === 'commit' && !config_1.COMMIT_SHA) {
+        throw new Error('commit_sha is required for commit deployment');
     }
+};
+const validateImageRef = () => {
+    if (!config_1.IMAGE_REF) {
+        throw new Error('image_ref is required for image deployment');
+    }
+    return config_1.IMAGE_REF;
 };
 const deploy = async () => {
     try {
@@ -54062,28 +54188,49 @@ const deploy = async () => {
             id: environmentId,
             projectId: config_1.PROJECT_ID
         });
+        const { serviceIds, apiServiceId, sourceKind } = await (0, get_service_deployment_targets_1.getServiceDeploymentTargets)({
+            environmentId: environment.id,
+            serviceInstances: environment.serviceInstances,
+            ignoredServices,
+            apiServiceName: config_1.API_SERVICE_NAME
+        });
+        const resolvedMode = (0, resolve_deployment_mode_1.resolveDeploymentMode)({
+            mode: config_1.DEPLOYMENT_MODE,
+            sourceKind,
+            commitSha: config_1.COMMIT_SHA || undefined,
+            imageRef: config_1.IMAGE_REF || undefined,
+            updateDeploymentTriggers: config_1.UPDATE_DEPLOYMENT_TRIGGERS
+        });
+        if (resolvedMode === 'commit' &&
+            config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true' &&
+            !config_1.BRANCH_NAME) {
+            throw new Error('branch_name is required when update_deployment_triggers is enabled');
+        }
         await (0, update_environment_variables_for_services_1.updateEnvironmentVariablesForServices)({
             environmentId: environment.id,
             projectId: config_1.PROJECT_ID,
             serviceInstances: environment.serviceInstances,
             environmentVariables: config_1.ENVIRONMENT_VARIABLES
         });
-        if (config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true') {
+        if (resolvedMode === 'image') {
+            const imageRef = validateImageRef();
+            await Promise.all(serviceIds.map(async (serviceId) => await (0, update_service_instance_1.updateServiceInstanceSource)({
+                environmentId: environment.id,
+                serviceId,
+                image: imageRef
+            })));
+        }
+        if (resolvedMode === 'commit' && config_1.UPDATE_DEPLOYMENT_TRIGGERS === 'true') {
             await (0, update_all_deployment_triggers_1.updateAllDeploymentTriggers)({
                 deploymentTriggerIds: environment.deploymentTriggers.edges.map(({ node }) => node.id),
                 branchName: config_1.BRANCH_NAME
             });
         }
-        const { serviceIds, apiServiceId } = await (0, get_service_deployment_targets_1.getServiceDeploymentTargets)({
-            serviceInstances: environment.serviceInstances,
-            ignoredServices,
-            apiServiceName: config_1.API_SERVICE_NAME
-        });
         if (serviceIds.length === 0) {
             throw new Error('No services are available for deployment');
         }
         const deploymentIds = await Promise.all(serviceIds.map(async (serviceId) => await (0, service_instance_deploy_v2_1.serviceInstanceDeployV2)({
-            commitSha: config_1.COMMIT_SHA,
+            ...(resolvedMode === 'commit' && { commitSha: config_1.COMMIT_SHA }),
             environmentId: environment.id,
             serviceId
         })));
@@ -54237,11 +54384,14 @@ const core = __importStar(__nccwpck_require__(2186));
 const client_1 = __nccwpck_require__(7202);
 const serviceInstanceDeployV2 = async ({ commitSha, environmentId, serviceId }) => {
     try {
-        const result = await client_1.sdk.ServiceInstanceDeployV2({
-            commitSha,
+        const variables = {
             environmentId,
             serviceId
-        });
+        };
+        if (commitSha) {
+            variables.commitSha = commitSha;
+        }
+        const result = await client_1.sdk.ServiceInstanceDeployV2(variables);
         const deploymentId = result.serviceInstanceDeployV2;
         if (!deploymentId) {
             throw new Error(`Railway did not return a deployment ID for service ${serviceId}`);
@@ -54580,6 +54730,56 @@ exports.variableCollectionUpsert = variableCollectionUpsert;
 
 /***/ }),
 
+/***/ 7580:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getServiceInstance = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const client_1 = __nccwpck_require__(7202);
+const getServiceInstance = async (variables) => {
+    try {
+        const result = await client_1.sdk.GetServiceInstance(variables);
+        if (!result.serviceInstance) {
+            throw new Error(`Service instance not found: ${variables.serviceId} in ${variables.environmentId}`);
+        }
+        return result.serviceInstance;
+    }
+    catch (error) {
+        core.setFailed(`Failed to get service instance: ${error.message}`);
+        throw error;
+    }
+};
+exports.getServiceInstance = getServiceInstance;
+
+
+/***/ }),
+
 /***/ 5304:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -54623,6 +54823,64 @@ const getService = async ({ id }) => {
     }
 };
 exports.getService = getService;
+
+
+/***/ }),
+
+/***/ 2561:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.updateServiceInstanceSource = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const client_1 = __nccwpck_require__(7202);
+const updateServiceInstanceSource = async ({ environmentId, serviceId, image }) => {
+    const input = {
+        source: { image }
+    };
+    const variables = {
+        environmentId,
+        serviceId,
+        input
+    };
+    try {
+        const result = await client_1.sdk.ServiceInstanceUpdate(variables);
+        if (!result.serviceInstanceUpdate) {
+            throw new Error(`Railway rejected the image update for service ${serviceId}`);
+        }
+        return result;
+    }
+    catch (error) {
+        core.setFailed(`Failed to update service ${serviceId} image: ${error.message}`);
+        throw error;
+    }
+};
+exports.updateServiceInstanceSource = updateServiceInstanceSource;
 
 
 /***/ }),

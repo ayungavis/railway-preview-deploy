@@ -160,6 +160,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Railway
+        id: deploy
         uses: ayungavis/railway-preview-deploy@v1.1.0
         with:
           railway_api_token: ${{ secrets.RAILWAY_API_TOKEN }}
@@ -203,7 +204,7 @@ jobs:
               ${marker}  <!-- This marker helps identify the comment for future updates -->
               🚀 **Deployment success!**
 
-              - \`web\` deployed at [${{ steps.test-action.outputs.service_domain }}](https://${{ steps.test-action.outputs.service_domain }})
+              - \`web\` deployed at [${{ steps.deploy.outputs.service_domain }}](https://${{ steps.deploy.outputs.service_domain }})
 
               ---
 
